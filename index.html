@@ -3,81 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pixel Knight: Ranking Edition</title>
+    <title>Pixel Knight: Infinite Clicker</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        /* (기존 CSS 스타일 그대로 유지 + 닉네임 모달 스타일 추가) */
-        :root { --bg-color: #2c3e50; --panel-bg: #34495e; --slot-bg: #202d3a; --accent: #e74c3c; --gold: #f1c40f; --text: #ecf0f1; --pixel-font: 'Press Start 2P', cursive; }
-        * { box-sizing: border-box; touch-action: none; }
-        body { margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text); font-family: var(--pixel-font); height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
-        
-        /* 닉네임 입력 모달 */
+        :root {
+            --bg-color: #2c3e50;
+            --panel-bg: #34495e;
+            --slot-bg: #202d3a;
+            --accent: #e74c3c;
+            --gold: #f1c40f;
+            --text: #ecf0f1;
+            --pixel-font: 'Press Start 2P', cursive;
+        }
+
+        * { box-sizing: border-box; touch-action: none; user-select: none; -webkit-user-select: none; }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color); color: var(--text);
+            font-family: var(--pixel-font);
+            height: 100vh; display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- UI Components --- */
+        /* 1. Login Modal */
         #login-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); z-index: 10000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         #login-modal input {
-            padding: 10px; font-family: inherit; font-size: 1rem; text-align: center; margin-bottom: 10px; width: 200px;
+            padding: 15px; font-family: inherit; font-size: 1.2rem; text-align: center; 
+            margin-bottom: 20px; width: 80%; max-width: 300px; text-transform: uppercase;
+            border: 4px solid #fff; background: #000; color: #fff;
         }
         
-        /* 랭킹 버튼 및 모달 */
-        #rank-btn { position: absolute; top: 10px; right: 10px; z-index: 50; padding: 5px 10px; font-size: 0.7rem; background: #222; border: 2px solid #fff; color: gold; cursor: pointer; }
+        /* 2. Rank Overlay */
         #rank-overlay { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 80%; max-width: 300px; background: #222; border: 4px solid #fff; padding: 20px; z-index: 60; text-align: center;
+            width: 85%; max-width: 350px; background: #222; border: 4px solid #fff; padding: 20px; 
+            z-index: 9000; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+        #rank-btn { 
+            position: absolute; top: 10px; right: 10px; z-index: 50; 
+            padding: 8px 12px; font-size: 0.8rem; background: #222; 
+            border: 2px solid gold; color: gold; cursor: pointer; 
+        }
+
+        /* 3. Stage Area (Battle) */
+        #stage-area {
+            flex: 0 0 40%; background: #87CEEB; position: relative; 
+            overflow: hidden; border-bottom: 4px solid #000; 
+            image-rendering: pixelated; cursor: crosshair; /* 조준점 커서 */
+        }
+        .stage-ui {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between; z-index: 20;
+            text-shadow: 2px 2px 0 #000; font-size: 0.7rem; color: #fff; pointer-events: none;
         }
         
-        /* (기존 게임 UI 스타일 생략 - 위와 동일하게 유지) */
-        #stage-area { flex: 0 0 40%; background: #87CEEB; position: relative; overflow: hidden; border-bottom: 4px solid #000; image-rendering: pixelated; }
-        .sky-cloud { position: absolute; top: 20px; width: 60px; height: 20px; background: #fff; box-shadow: 10px 10px 0 #eee; opacity: 0.8; animation: cloudMove 20s linear infinite; }
-        .ground { position: absolute; bottom: 0; width: 100%; height: 20%; background: #27ae60; border-top: 4px solid #2ecc71; }
+        /* Background Elements */
+        .sky-cloud {
+            position: absolute; top: 20px; width: 60px; height: 20px;
+            background: #fff; box-shadow: 10px 10px 0 #eee; opacity: 0.8;
+            animation: cloudMove 20s linear infinite; pointer-events: none;
+        }
+        .ground {
+            position: absolute; bottom: 0; width: 100%; height: 20%;
+            background: #27ae60; border-top: 4px solid #2ecc71; pointer-events: none;
+        }
         @keyframes cloudMove { from { left: 100%; } to { left: -20%; } }
-        .stage-ui { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; z-index: 20; text-shadow: 2px 2px 0 #000; font-size: 0.7rem; color: #fff; }
-        .actor-wrapper { position: absolute; bottom: 15%; width: 80px; height: 80px; }
+
+        /* Actors (Hero & Monster) */
+        .actor-wrapper { position: absolute; bottom: 15%; width: 80px; height: 80px; pointer-events: none; }
         svg { width: 100%; height: 100%; overflow: visible; }
+
         #hero-wrapper { left: 15%; z-index: 10; }
         .hero-idle { animation: idleBounce 0.8s infinite alternate; }
-        .hero-attack { animation: attackThrust 0.15s forwards; }
+        .hero-attack { animation: attackThrust 0.1s forwards; } /* 공격 속도 매우 빠름 */
         @keyframes idleBounce { to { transform: translateY(-3px); } }
-        @keyframes attackThrust { 0% { transform: translateX(0); } 50% { transform: translateX(30px); } 100% { transform: translateX(0); } }
-        #monster-wrapper { right: 15%; z-index: 9; transition: filter 0.1s; }
+        @keyframes attackThrust { 0% { transform: translateX(0); } 50% { transform: translateX(20px); } 100% { transform: translateX(0); } }
+
+        #monster-wrapper { right: 15%; z-index: 9; transition: filter 0.05s; }
         .monster-idle { animation: monsterFloat 1.5s infinite ease-in-out; }
-        .monster-hit { animation: hitShake 0.2s; filter: brightness(5) sepia(1) saturate(5) hue-rotate(-50deg) !important; }
+        .monster-hit { filter: brightness(10) sepia(1) saturate(5) hue-rotate(-50deg) !important; transform: scale(0.9); }
         @keyframes monsterFloat { 50% { transform: translateY(-5px) scale(1.05); } }
-        @keyframes hitShake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-        .hp-bar-container { position: absolute; bottom: 85px; right: 15%; width: 80px; height: 6px; background: #333; border: 2px solid #000; }
+
+        /* HP Bar */
+        .hp-bar-container {
+            position: absolute; bottom: 85px; right: 15%; width: 80px; height: 8px;
+            background: #333; border: 2px solid #000; pointer-events: none;
+        }
         .hp-fill { height: 100%; background: #e74c3c; width: 100%; transition: width 0.1s; }
-        #game-area { flex: 1; display: flex; flex-direction: column; padding: 10px; background: var(--panel-bg); box-shadow: inset 0 5px 10px rgba(0,0,0,0.3); }
-        .stats-bar { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.8rem; color: var(--gold); text-shadow: 1px 1px 0 #000; }
-        #grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; flex: 1; max-width: 500px; margin: 0 auto; width: 100%; aspect-ratio: 1; }
-        .slot { background: var(--slot-bg); border: 2px solid #111; border-radius: 4px; position: relative; display: flex; justify-content: center; align-items: center; }
-        .item { font-size: 2rem; cursor: grab; user-select: none; position: absolute; z-index: 5; filter: drop-shadow(2px 2px 0 #000); transition: transform 0.1s; }
+
+        /* Damage Text */
+        .dmg-text {
+            position: absolute; font-weight: bold; text-shadow: 2px 2px 0 #000;
+            pointer-events: none; animation: floatUp 0.6s forwards; z-index: 100;
+        }
+        @keyframes floatUp { 
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
+        }
+
+        /* 4. Game Area (Merge) */
+        #game-area {
+            flex: 1; display: flex; flex-direction: column; padding: 10px;
+            background: var(--panel-bg); box-shadow: inset 0 5px 10px rgba(0,0,0,0.3);
+        }
+        .stats-bar {
+            display: flex; justify-content: space-between; margin-bottom: 10px;
+            font-size: 0.8rem; color: var(--gold); text-shadow: 1px 1px 0 #000;
+        }
+        #grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+            flex: 1; max-width: 500px; margin: 0 auto; width: 100%; aspect-ratio: 1;
+        }
+        .slot {
+            background: var(--slot-bg); border: 2px solid #111; border-radius: 4px;
+            position: relative; display: flex; justify-content: center; align-items: center;
+        }
+        .item {
+            font-size: 2rem; cursor: grab; position: absolute; z-index: 5;
+            filter: drop-shadow(2px 2px 0 #000); transition: transform 0.1s;
+        }
         .item.dragging { z-index: 100; pointer-events: none; transform: scale(1.2); opacity: 0.8; }
+
+        /* Controls */
         .controls { margin-top: 10px; text-align: center; }
-        button { background: var(--accent); color: white; border: 4px solid #c0392b; padding: 15px; font-family: var(--pixel-font); font-size: 0.9rem; width: 100%; max-width: 500px; box-shadow: 0 4px 0 #96281b; cursor: pointer; }
+        button {
+            background: var(--accent); color: white; border: 4px solid #c0392b; padding: 15px;
+            font-family: var(--pixel-font); font-size: 1rem; width: 100%; max-width: 500px;
+            box-shadow: 0 4px 0 #96281b; cursor: pointer; text-transform: uppercase;
+        }
         button:active { transform: translateY(4px); box-shadow: none; }
         button:disabled { background: #7f8c8d; border-color: #555; box-shadow: none; color: #ccc; cursor: not-allowed; }
-        .dmg-text { position: absolute; color: #fff; font-weight: bold; font-size: 1.2rem; text-shadow: 2px 2px 0 #000; pointer-events: none; animation: floatUp 0.8s forwards; z-index: 30; }
-        @keyframes floatUp { 100% { opacity: 0; transform: translateY(-40px) scale(1.5); } }
+        
+        .modal-btn { width: auto; margin-top: 10px; padding: 10px 20px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
     <div id="login-modal">
-        <h2 style="color: white; margin-bottom: 20px;">WHO ARE YOU?</h2>
-        <input type="text" id="nickname-input" placeholder="NICKNAME (ENG/NUM)" maxlength="8">
-        <button onclick="checkAndStart()" style="width: 200px;">START GAME</button>
-        <p id="login-msg" style="color: #ff6b6b; font-size: 0.7rem; margin-top: 10px;"></p>
+        <h1 style="color:white; text-shadow: 4px 4px 0 #000; margin-bottom: 30px; text-align: center; line-height: 1.5;">PIXEL<br>KNIGHT</h1>
+        <input type="text" id="nickname-input" placeholder="NICKNAME (ENG)" maxlength="8">
+        <button onclick="checkAndStart()" style="width: 80%; max-width: 300px;">GAME START</button>
+        <p id="login-msg" style="color: #ff6b6b; font-size: 0.7rem; margin-top: 15px; height: 10px;"></p>
+        <p style="color: #ccc; font-size: 0.6rem; margin-top: 30px;">SOUND ON 🔊</p>
     </div>
 
     <button id="rank-btn" onclick="openRanking()">🏆 RANK</button>
     <div id="rank-overlay">
-        <h3 style="color: gold;">TOP 10 RANK</h3>
-        <div id="rank-list" style="text-align: left; font-size: 0.8rem; line-height: 1.8; min-height: 150px; color: white;">
+        <h3 style="color: gold; margin-top: 0;">HALL OF FAME</h3>
+        <div id="rank-list" style="text-align: left; font-size: 0.8rem; line-height: 1.8; min-height: 150px; color: white; margin-bottom: 20px;">
             Loading...
         </div>
-        <button onclick="document.getElementById('rank-overlay').style.display='none'" style="margin-top: 20px; padding: 10px;">CLOSE</button>
+        <button class="modal-btn" onclick="document.getElementById('rank-overlay').style.display='none'">CLOSE</button>
     </div>
 
     <div id="stage-area">
@@ -89,23 +171,43 @@
         </div>
         
         <div id="hero-wrapper" class="actor-wrapper hero-idle">
-            <svg viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="5" y="0" width="2" height="1" fill="#e74c3c" /><rect x="4" y="1" width="4" height="3" fill="#95a5a6" /><rect x="5" y="2" width="2" height="1" fill="#000" /><rect x="3" y="4" width="6" height="4" fill="#34495e" /><rect x="5" y="5" width="2" height="2" fill="#bdc3c7" /><rect x="4" y="8" width="1" height="3" fill="#2c3e50" /><rect x="7" y="8" width="1" height="3" fill="#2c3e50" /><rect x="9" y="5" width="1" height="1" fill="#8e44ad" /><rect x="9" y="2" width="1" height="3" fill="#ecf0f1" /><rect x="2" y="5" width="2" height="3" fill="#f1c40f" /></svg>
+            <svg viewBox="0 0 12 12" shape-rendering="crispEdges">
+                <rect x="5" y="0" width="2" height="1" fill="#e74c3c" />
+                <rect x="4" y="1" width="4" height="3" fill="#95a5a6" />
+                <rect x="5" y="2" width="2" height="1" fill="#000" />
+                <rect x="3" y="4" width="6" height="4" fill="#34495e" />
+                <rect x="5" y="5" width="2" height="2" fill="#bdc3c7" />
+                <rect x="4" y="8" width="1" height="3" fill="#2c3e50" />
+                <rect x="7" y="8" width="1" height="3" fill="#2c3e50" />
+                <rect x="9" y="5" width="1" height="1" fill="#8e44ad" />
+                <rect x="9" y="2" width="1" height="3" fill="#ecf0f1" />
+                <rect x="2" y="5" width="2" height="3" fill="#f1c40f" />
+            </svg>
         </div>
+
         <div id="monster-wrapper" class="actor-wrapper monster-idle">
             <div class="hp-bar-container"><div id="monster-hp-bar" class="hp-fill"></div></div>
-            <svg id="monster-svg" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="4" width="8" height="7" fill="currentColor" /><rect x="3" y="3" width="6" height="1" fill="currentColor" /><rect x="3" y="5" width="2" height="2" fill="#fff" /><rect x="7" y="5" width="2" height="2" fill="#fff" /><rect x="4" y="6" width="1" height="1" fill="#000" /><rect x="8" y="6" width="1" height="1" fill="#000" /><rect x="5" y="9" width="2" height="1" fill="#330000" opacity="0.5" /></svg>
+            <svg id="monster-svg" viewBox="0 0 12 12" shape-rendering="crispEdges">
+                <rect x="2" y="4" width="8" height="7" fill="currentColor" />
+                <rect x="3" y="3" width="6" height="1" fill="currentColor" />
+                <rect x="3" y="5" width="2" height="2" fill="#fff" />
+                <rect x="7" y="5" width="2" height="2" fill="#fff" />
+                <rect x="4" y="6" width="1" height="1" fill="#000" />
+                <rect x="8" y="6" width="1" height="1" fill="#000" />
+                <rect x="5" y="9" width="2" height="1" fill="#330000" opacity="0.5" />
+            </svg>
         </div>
     </div>
 
     <div id="game-area">
         <div class="stats-bar">
             <span>💰 <span id="gold-display">0</span></span>
-            <span id="my-nick-display" style="color: #aaa;"></span>
+            <span id="my-nick-display" style="color: #aaa;">PLAYER</span>
         </div>
         <div id="grid"></div>
         <div class="controls">
-            <button id="buy-btn">무기 뽑기 (10 G)</button>
-            <div style="margin-top:8px; font-size:0.6rem; color:#7f8c8d; cursor:pointer;" onclick="resetData()">[데이터 초기화]</div>
+            <button id="buy-btn">WEAPON (10 G)</button>
+            <div style="margin-top:8px; font-size:0.6rem; color:#7f8c8d; cursor:pointer;" onclick="resetData()">[RESET DATA]</div>
         </div>
     </div>
 
@@ -123,73 +225,72 @@
           appId: "1:655295451453:web:ae0d1fc35d02f992ecf554"
         };
 
+        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- 전역 변수 및 게임 상태 ---
+        // --- 전역 변수 ---
         window.myNickname = localStorage.getItem('pixelNick') || null;
         let game = { gold: 0, inventory: Array(16).fill(null), buyCount: 0, stage: 1, monsterHp: 20, maxHp: 20, bestStage: 1 };
         const WEAPONS = ['🗡️', '⚔️', '🏹', '🪓', '🔱', '🔥', '💀', '💎', '🌙', '🌟'];
-        
-        // --- 1. 로그인 & 닉네임 로직 ---
+        let audioCtx = null;
+        let isGameStarted = false;
+
+        // --- 1. 로그인 & 랭킹 시스템 ---
         const loginModal = document.getElementById('login-modal');
         const loginMsg = document.getElementById('login-msg');
 
+        // 이미 닉네임이 있으면 바로 시작
         if (window.myNickname) {
-            loginModal.style.display = 'none'; // 닉네임 있으면 바로 시작
+            loginModal.style.display = 'none';
+            // 자동 시작 시에는 사운드 컨텍스트가 user gesture를 기다려야 하므로
+            // 첫 클릭(전투) 시 오디오가 켜지도록 처리됨
             startGame();
         }
 
         window.checkAndStart = async () => {
-            const input = document.getElementById('nickname-input').value.trim();
+            const input = document.getElementById('nickname-input').value.trim().toUpperCase();
             if (input.length < 2) {
                 loginMsg.innerText = "2글자 이상 입력하세요.";
                 return;
             }
 
-            // 중복 체크: 닉네임을 문서 ID로 사용
+            // 중복 체크
             const docRef = doc(db, "ranks", input);
             try {
+                loginMsg.innerText = "CHECKING...";
                 const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    loginMsg.innerText = "이미 존재하는 닉네임입니다!";
+                if (docSnap.exists() && input !== window.myNickname) {
+                    loginMsg.innerText = "이미 존재하는 닉네임입니다.";
                 } else {
-                    // 사용 가능 -> 저장 및 시작
                     localStorage.setItem('pixelNick', input);
                     window.myNickname = input;
-                    
-                    // DB에 초기 데이터 생성
-                    await setDoc(docRef, { score: 1, lastUpdate: new Date().toISOString() });
+                    // 초기 데이터 생성
+                    if (!docSnap.exists()) {
+                        await setDoc(docRef, { score: 1, lastUpdate: new Date().toISOString() });
+                    }
                     
                     loginModal.style.display = 'none';
+                    initAudio(); // 버튼 클릭 시 오디오 활성화
                     startGame();
                 }
             } catch (e) {
                 console.error(e);
-                loginMsg.innerText = "서버 연결 오류.";
+                loginMsg.innerText = "서버 연결 오류 (Config 확인)";
             }
         };
 
-        // --- 2. 랭킹 시스템 (자동 저장 & 조회) ---
-        
-        // 자동 저장 (스테이지 클리어 시 호출)
+        // 자동 랭킹 저장 (신기록 달성 시)
         async function autoSaveScore() {
             if (!window.myNickname) return;
-            
-            // 내 로컬 최고 기록보다 높을 때만 서버 저장 (토큰 절약)
             if (game.stage > game.bestStage) {
                 game.bestStage = game.stage;
                 try {
-                    const docRef = doc(db, "ranks", window.myNickname);
-                    // merge: true는 기존 데이터 유지하며 점수만 업데이트
-                    await setDoc(docRef, { 
+                    await setDoc(doc(db, "ranks", window.myNickname), { 
                         score: game.stage, 
                         lastUpdate: new Date().toISOString() 
                     }, { merge: true });
-                    console.log("Ranking Auto-saved:", game.stage);
-                } catch(e) {
-                    console.log("Auto-save failed (Network?)");
-                }
+                } catch(e) {}
             }
         }
 
@@ -205,28 +306,190 @@
                 let rank = 1;
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    const color = rank === 1 ? 'gold' : (rank === 2 ? 'silver' : (rank === 3 ? '#cd7f32' : 'white'));
-                    html += `<div style="color:${color}; border-bottom:1px solid #333;">
-                                ${rank}. ${doc.id} : ${data.score} STAGE
+                    let color = 'white';
+                    if (rank === 1) color = '#ffd700'; // Gold
+                    else if (rank === 2) color = '#c0c0c0'; // Silver
+                    else if (rank === 3) color = '#cd7f32'; // Bronze
+
+                    html += `<div style="display:flex; justify-content:space-between; color:${color}; margin-bottom: 5px; border-bottom:1px solid #333;">
+                                <span>${rank}. ${doc.id}</span>
+                                <span>${data.score} F</span>
                              </div>`;
                     rank++;
                 });
                 listEl.innerHTML = html;
             } catch(e) {
-                listEl.innerHTML = "Error loading rank.";
+                listEl.innerHTML = "Error loading rank.<br>Check console.";
+                console.error(e);
             }
         }
 
-        // --- 3. 게임 로직 (수정된 부분) ---
+        // --- 2. 사운드 시스템 (Web Audio API) ---
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            } else if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSfx(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            const now = audioCtx.currentTime;
+            
+            if (type === 'hit') { // 퍽! (Noise-like)
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.1);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'click') { // 얍! (Higher pitch)
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.1);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'merge') { // 띠롱
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.linearRampToValueAtTime(800, now + 0.1);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'buy') { // 짤랑
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(1200, now);
+                gainNode.gain.setValueAtTime(0.05, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            }
+        }
+
+        // --- 3. 게임 코어 로직 ---
         function startGame() {
-            document.getElementById('my-nick-display').innerText = window.myNickname;
+            document.getElementById('my-nick-display').innerText = window.myNickname || 'PLAYER';
+            isGameStarted = true;
             initGrid();
             loadData();
             render();
             requestAnimationFrame(combatLoop);
         }
 
-        // ... (기존 createGrid, getBuyCost 등 유틸 함수들 그대로 사용) ...
+        // 유틸 함수
+        function getBuyCost() { return Math.floor(10 * Math.pow(1.15, game.buyCount)); }
+        function getWeaponDamage(level) { return Math.floor(10 * Math.pow(2.1, level)); }
+        function getTotalDPS() { return game.inventory.reduce((sum, lvl) => (lvl !== null ? sum + getWeaponDamage(lvl) : sum), 0); }
+        function getMonsterMaxHp(stage) { return Math.floor(30 * Math.pow(1.25, stage - 1)); }
+
+        // --- 전투 시스템 (자동 + 클릭) ---
+        let lastTime = 0;
+        function combatLoop(timestamp) {
+            if (!isGameStarted) return;
+            if (!lastTime) lastTime = timestamp;
+            if (timestamp - lastTime >= 1000) { // 1초마다 자동 공격
+                const dps = getTotalDPS();
+                if (dps > 0) attackMonster(dps, null, null, false);
+                lastTime = timestamp;
+            }
+            requestAnimationFrame(combatLoop);
+        }
+
+        // 클릭/터치 이벤트 (전투 영역)
+        const stageZone = document.getElementById('stage-area');
+        stageZone.addEventListener('pointerdown', (e) => {
+            if (!isGameStarted || game.monsterHp <= 0) return;
+            initAudio(); // 첫 클릭 시 오디오 활성화 보장
+            
+            // 클릭 데미지 = DPS (DPS가 0이어도 최소 1 데미지)
+            const dps = getTotalDPS();
+            const dmg = Math.max(1, dps); 
+            
+            attackMonster(dmg, e.clientX, e.clientY, true);
+        });
+
+        function attackMonster(damage, x, y, isClick) {
+            const hero = document.getElementById('hero-wrapper');
+            const monster = document.getElementById('monster-wrapper');
+
+            // Hero Animation (Reset for instant feedback)
+            hero.classList.remove('hero-attack');
+            void hero.offsetWidth; 
+            hero.classList.add('hero-attack');
+
+            // Monster Damage
+            game.monsterHp -= damage;
+            updateHpBar();
+            
+            // Visual & Sound
+            showDamageText(damage, x, y, isClick);
+            if (isClick) playSfx('click'); 
+            else playSfx('hit');
+
+            // Monster Hit Effect
+            monster.classList.remove('monster-hit');
+            void monster.offsetWidth;
+            monster.classList.add('monster-hit');
+
+            // Death Check
+            if (game.monsterHp <= 0) killMonster();
+        }
+
+        function killMonster() {
+            game.gold += Math.floor(game.maxHp * 0.4);
+            game.stage++;
+            game.maxHp = getMonsterMaxHp(game.stage);
+            game.monsterHp = game.maxHp;
+
+            autoSaveScore(); // 스테이지 클리어 시 자동 저장
+            
+            updateMonsterAppearance();
+            updateHpBar();
+            render();
+        }
+
+        function showDamageText(dmg, x, y, isClick) {
+            const el = document.createElement('div');
+            el.className = 'dmg-text';
+            el.innerHTML = isClick ? `💥${dmg}` : `-${dmg}`;
+            
+            // 클릭은 노란색 크게, 자동은 흰색 작게
+            el.style.color = isClick ? '#fff176' : '#fff'; 
+            el.style.fontSize = isClick ? '1.5rem' : '1.0rem';
+            el.style.zIndex = 100;
+
+            if (x !== null && y !== null) {
+                el.style.left = `${x}px`; el.style.top = `${y}px`;
+            } else {
+                // 몬스터 근처 랜덤
+                const mRect = document.getElementById('monster-wrapper').getBoundingClientRect();
+                const rX = (Math.random() - 0.5) * 60;
+                el.style.left = `${mRect.left + 30 + rX}px`;
+                el.style.top = `${mRect.top}px`;
+            }
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 600);
+        }
+
+        function updateHpBar() {
+            const pct = Math.max(0, (game.monsterHp / game.maxHp) * 100);
+            document.getElementById('monster-hp-bar').style.width = pct + '%';
+        }
+        
+        function updateMonsterAppearance() {
+            const hue = (game.stage * 35) % 360; 
+            const monster = document.getElementById('monster-wrapper');
+            monster.style.color = `hsl(${hue}, 70%, 60%)`;
+            document.getElementById('monster-svg').style.fill = `hsl(${hue}, 70%, 60%)`;
+        }
+
+        // --- 4. 머지 & 렌더링 ---
         function initGrid() {
             const gridEl = document.getElementById('grid');
             gridEl.innerHTML = '';
@@ -236,76 +499,7 @@
                 gridEl.appendChild(slot);
             }
         }
-        function getBuyCost() { return Math.floor(10 * Math.pow(1.15, game.buyCount)); }
-        function getWeaponDamage(level) { return Math.floor(10 * Math.pow(2.1, level)); }
-        function getTotalDPS() { return game.inventory.reduce((sum, lvl) => (lvl !== null ? sum + getWeaponDamage(lvl) : sum), 0); }
-        function getMonsterMaxHp(stage) { return Math.floor(30 * Math.pow(1.25, stage - 1)); }
 
-        // 전투 루프
-        let lastTime = 0;
-        function combatLoop(timestamp) {
-            if (!lastTime) lastTime = timestamp;
-            if (timestamp - lastTime >= 1000) {
-                const dps = getTotalDPS();
-                if (dps > 0) attackMonster(dps);
-                lastTime = timestamp;
-            }
-            requestAnimationFrame(combatLoop);
-        }
-
-        function attackMonster(damage) {
-            const heroWrapper = document.getElementById('hero-wrapper');
-            const monsterWrapper = document.getElementById('monster-wrapper');
-            
-            heroWrapper.classList.remove('hero-attack');
-            void heroWrapper.offsetWidth; 
-            heroWrapper.classList.add('hero-attack');
-
-            game.monsterHp -= damage;
-            updateHpBar();
-            showDamageText(damage);
-
-            monsterWrapper.classList.add('monster-hit');
-            setTimeout(() => monsterWrapper.classList.remove('monster-hit'), 200);
-
-            if (game.monsterHp <= 0) {
-                killMonster(); // 몬스터 처치 함수 분리
-            }
-        }
-
-        function killMonster() {
-            game.gold += Math.floor(game.maxHp * 0.4);
-            game.stage++;
-            game.maxHp = getMonsterMaxHp(game.stage);
-            game.monsterHp = game.maxHp;
-
-            // ★ 여기서 자동 저장 실행! ★
-            autoSaveScore(); 
-
-            updateMonsterAppearance();
-            updateHpBar();
-            render();
-        }
-
-        // ... (기존 렌더링, 드래그앤드롭, UI 업데이트 함수들 - 생략된 부분 없이 모두 포함해야 함) ...
-        // (편의상 핵심 변경점 위주로 작성했습니다. 아래 필수 UI 함수들을 꼭 포함하세요)
-        
-        function updateHpBar() {
-             const pct = Math.max(0, (game.monsterHp / game.maxHp) * 100);
-             document.getElementById('monster-hp-bar').style.width = pct + '%';
-        }
-        function updateMonsterAppearance() {
-            const hue = (game.stage * 45) % 360; 
-            document.getElementById('monster-wrapper').style.color = `hsl(${hue}, 70%, 60%)`;
-            document.getElementById('monster-svg').style.fill = `hsl(${hue}, 70%, 60%)`;
-        }
-        function showDamageText(dmg) {
-            const el = document.createElement('div'); el.className = 'dmg-text'; el.innerText = `-${dmg}`;
-            const randX = (Math.random() - 0.5) * 40;
-            el.style.left = `calc(85% + ${randX}px)`; el.style.top = '50%';
-            document.getElementById('stage-area').appendChild(el);
-            setTimeout(() => el.remove(), 800);
-        }
         function render() {
             document.getElementById('gold-display').innerText = Math.floor(game.gold).toLocaleString();
             document.getElementById('dps-display').innerText = getTotalDPS().toLocaleString();
@@ -313,7 +507,7 @@
             
             const cost = getBuyCost();
             const buyBtn = document.getElementById('buy-btn');
-            buyBtn.innerText = `무기 뽑기 (${cost.toLocaleString()} G)`;
+            buyBtn.innerText = `WEAPON (${cost.toLocaleString()} G)`;
             buyBtn.disabled = game.gold < cost;
 
             const slots = document.querySelectorAll('.slot');
@@ -330,55 +524,98 @@
             saveData();
         }
 
-        // 드래그 앤 드롭 (이전 코드와 동일)
+        // Drag & Drop
         let dragged = null, startIdx = null, offsets = { x:0, y:0 };
-        function addDragEvents(el) { el.addEventListener('mousedown', startDrag); el.addEventListener('touchstart', startDrag, {passive: false}); }
+        function addDragEvents(el) { 
+            el.addEventListener('mousedown', startDrag); 
+            el.addEventListener('touchstart', startDrag, {passive: false}); 
+        }
         function startDrag(e) {
-            e.preventDefault(); dragged = e.target; startIdx = parseInt(dragged.parentElement.dataset.index);
-            const cX = e.touches ? e.touches[0].clientX : e.clientX; const cY = e.touches ? e.touches[0].clientY : e.clientY;
-            const r = dragged.getBoundingClientRect(); offsets.x = cX - r.left; offsets.y = cY - r.top;
-            dragged.classList.add('dragging'); dragged.style.position = 'fixed';
+            if(e.type === 'touchstart') e.preventDefault(); // 모바일 스크롤 방지
+            dragged = e.target; startIdx = parseInt(dragged.parentElement.dataset.index);
+            const cX = e.touches ? e.touches[0].clientX : e.clientX; 
+            const cY = e.touches ? e.touches[0].clientY : e.clientY;
+            const r = dragged.getBoundingClientRect(); 
+            offsets.x = cX - r.left; offsets.y = cY - r.top;
+            
+            dragged.classList.add('dragging'); 
+            dragged.style.position = 'fixed';
             dragged.style.left = (cX - offsets.x) + 'px'; dragged.style.top = (cY - offsets.y) + 'px';
             dragged.style.width = r.width + 'px'; dragged.style.height = r.height + 'px';
+            
             document.addEventListener('mousemove', moveDrag); document.addEventListener('mouseup', endDrag);
             document.addEventListener('touchmove', moveDrag, {passive:false}); document.addEventListener('touchend', endDrag);
         }
-        function moveDrag(e) { if(!dragged) return; e.preventDefault(); const cX = e.touches ? e.touches[0].clientX : e.clientX; const cY = e.touches ? e.touches[0].clientY : e.clientY; dragged.style.left = (cX - offsets.x) + 'px'; dragged.style.top = (cY - offsets.y) + 'px'; }
+        function moveDrag(e) { 
+            if(!dragged) return; if(e.type === 'touchmove') e.preventDefault();
+            const cX = e.touches ? e.touches[0].clientX : e.clientX; 
+            const cY = e.touches ? e.touches[0].clientY : e.clientY; 
+            dragged.style.left = (cX - offsets.x) + 'px'; dragged.style.top = (cY - offsets.y) + 'px'; 
+        }
         function endDrag(e) {
-            if(!dragged) return; const cX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX; const cY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-            dragged.hidden = true; const elem = document.elementFromPoint(cX, cY); dragged.hidden = false;
-            const slot = elem ? elem.closest('.slot') : null; if(slot) handleMerge(startIdx, parseInt(slot.dataset.index));
+            if(!dragged) return; 
+            const cX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX; 
+            const cY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            
+            dragged.hidden = true; 
+            const elem = document.elementFromPoint(cX, cY); 
+            dragged.hidden = false;
+            
+            const slot = elem ? elem.closest('.slot') : null; 
+            if(slot) handleMerge(startIdx, parseInt(slot.dataset.index));
+            
             dragged.remove(); dragged = null;
             document.removeEventListener('mousemove', moveDrag); document.removeEventListener('mouseup', endDrag);
-            document.removeEventListener('touchmove', moveDrag); document.removeEventListener('touchend', endDrag); render();
+            document.removeEventListener('touchmove', moveDrag); document.removeEventListener('touchend', endDrag); 
+            render();
         }
+
         function handleMerge(from, to) {
-            if(from === to) return; const i1 = game.inventory[from], i2 = game.inventory[to];
-            if(i2 === null) { game.inventory[to] = i1; game.inventory[from] = null; }
-            else if(i1 === i2) { if(i1 < 10) { game.inventory[to] = i1 + 1; game.inventory[from] = null; } else { game.inventory[to] = i1; game.inventory[from] = i2; } } 
-            else { game.inventory[to] = i1; game.inventory[from] = i2; }
+            if(from === to) return; 
+            const i1 = game.inventory[from], i2 = game.inventory[to];
+            
+            if(i2 === null) { // 이동
+                game.inventory[to] = i1; game.inventory[from] = null; 
+            } else if(i1 === i2) { // 합치기
+                if(i1 < WEAPONS.length - 1) { 
+                    game.inventory[to] = i1 + 1; game.inventory[from] = null; 
+                    playSfx('merge');
+                } else { // 만렙 교체
+                    game.inventory[to] = i1; game.inventory[from] = i2; 
+                } 
+            } else { // 교체
+                game.inventory[to] = i1; game.inventory[from] = i2; 
+            }
         }
 
         document.getElementById('buy-btn').addEventListener('click', () => {
             const cost = getBuyCost(); const empty = game.inventory.findIndex(x => x === null);
-            if(game.gold >= cost && empty !== -1) { game.gold -= cost; game.inventory[empty] = 0; game.buyCount++; render(); }
+            if(game.gold >= cost && empty !== -1) { 
+                game.gold -= cost; game.inventory[empty] = 0; game.buyCount++; 
+                playSfx('buy'); render(); 
+            }
         });
 
+        // Save & Load
         function saveData() { localStorage.setItem('knightMergeSave', JSON.stringify(game)); }
         function loadData() { 
             const s = localStorage.getItem('knightMergeSave'); 
-            if(s) { game = JSON.parse(s); if(!game.bestStage) game.bestStage = game.stage; } 
-            else game.gold = 100; 
+            if(s) { 
+                game = JSON.parse(s); 
+                if(!game.bestStage) game.bestStage = game.stage; // 구버전 데이터 호환
+            } else {
+                game.gold = 100; // 초기 자금
+            }
             updateMonsterAppearance(); 
         }
+        
         window.resetData = function() { 
-            if(confirm("초기화?")) { 
+            if(confirm("모든 데이터를 초기화하시겠습니까?")) { 
                 localStorage.removeItem('knightMergeSave'); 
                 localStorage.removeItem('pixelNick'); 
                 location.reload(); 
             } 
         }
-
     </script>
 </body>
 </html>
