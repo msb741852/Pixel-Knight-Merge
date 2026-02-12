@@ -22,12 +22,16 @@
             margin: 0; padding: 0;
             background-color: var(--bg-color); color: var(--text);
             font-family: var(--pixel-font);
-            height: 100vh; display: flex; flex-direction: column;
+            /* 모바일 브라우저 주소창 제외한 실제 높이 */
+            height: 100dvh; 
+            display: flex; flex-direction: column;
             overflow: hidden;
+            /* 아이폰 하단 홈 바 영역만큼 패딩 추가 */
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         /* --- UI Components --- */
-        /* 1. Login Modal */
+        /* 1. 로그인 모달 */
         #login-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); z-index: 10000;
@@ -39,35 +43,50 @@
             border: 4px solid #fff; background: #000; color: #fff;
         }
         
-        /* 2. Rank Overlay */
+        /* 2. 랭킹 오버레이 */
         #rank-overlay { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 85%; max-width: 350px; background: #222; border: 4px solid #fff; padding: 20px; 
             z-index: 9000; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.8);
         }
+        
+        /* 3. 랭킹 버튼 (작고 귀엽게 우측 상단 배치) */
         #rank-btn { 
-            position: absolute; top: 10px; right: 10px; z-index: 50; 
-            padding: 8px 12px; font-size: 0.8rem; background: #222; 
-            border: 2px solid gold; color: gold; cursor: pointer; 
+            position: absolute; 
+            top: calc(env(safe-area-inset-top) + 15px); 
+            right: 15px; 
+            z-index: 500; 
+            width: auto !important; height: auto !important;
+            padding: 6px 10px; font-size: 0.6rem; 
+            background: rgba(0,0,0,0.7); border: 1px solid gold; border-radius: 8px;
+            color: gold; cursor: pointer;
         }
 
-        /* 3. Stage Area (Battle) */
+        /* 4. 전투 화면 (상단) */
         #stage-area {
-            flex: 0 0 40%; background: #87CEEB; position: relative; 
+            flex: 0 0 35%; /* 화면의 35% 차지 */
+            background: #87CEEB; position: relative; 
             overflow: hidden; border-bottom: 4px solid #000; 
-            image-rendering: pixelated; cursor: crosshair; /* 조준점 커서 */
-        }
-        .stage-ui {
-            position: absolute; top: 10px; left: 10px; right: 10px;
-            display: flex; justify-content: space-between; z-index: 20;
-            text-shadow: 2px 2px 0 #000; font-size: 0.7rem; color: #fff; pointer-events: none;
+            image-rendering: pixelated; cursor: crosshair;
         }
         
-        /* Background Elements */
+        /* 정보창 (왼쪽 상단 세로 배치) */
+        .stage-ui {
+            position: absolute; 
+            top: calc(env(safe-area-inset-top) + 15px); 
+            left: 20px; 
+            display: flex; flex-direction: column; align-items: flex-start;
+            z-index: 500; font-size: 0.7rem; color: #fff; pointer-events: none;
+        }
+        .stage-ui > div {
+            background: rgba(0, 0, 0, 0.6); padding: 4px 8px; margin-bottom: 5px;
+            border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); text-shadow: 1px 1px 0 #000;
+        }
+        
         .sky-cloud {
             position: absolute; top: 20px; width: 60px; height: 20px;
             background: #fff; box-shadow: 10px 10px 0 #eee; opacity: 0.8;
-            animation: cloudMove 20s linear infinite; pointer-events: none;
+            animation: cloudMove 20s linear infinite; pointer-events: none; z-index: 1;
         }
         .ground {
             position: absolute; bottom: 0; width: 100%; height: 20%;
@@ -75,72 +94,97 @@
         }
         @keyframes cloudMove { from { left: 100%; } to { left: -20%; } }
 
-        /* Actors (Hero & Monster) */
+        /* 캐릭터 & 몬스터 */
         .actor-wrapper { position: absolute; bottom: 15%; width: 80px; height: 80px; pointer-events: none; }
         svg { width: 100%; height: 100%; overflow: visible; }
 
         #hero-wrapper { left: 15%; z-index: 10; }
         .hero-idle { animation: idleBounce 0.8s infinite alternate; }
-        .hero-attack { animation: attackThrust 0.1s forwards; } /* 공격 속도 매우 빠름 */
+        .hero-attack { animation: attackThrust 0.1s forwards; } 
         @keyframes idleBounce { to { transform: translateY(-3px); } }
         @keyframes attackThrust { 0% { transform: translateX(0); } 50% { transform: translateX(20px); } 100% { transform: translateX(0); } }
 
         #monster-wrapper { right: 15%; z-index: 9; transition: filter 0.05s; }
         .monster-idle { animation: monsterFloat 1.5s infinite ease-in-out; }
-        .monster-hit { filter: brightness(10) sepia(1) saturate(5) hue-rotate(-50deg) !important; transform: scale(0.9); }
+        
+        /* 몬스터 피격 효과 (붉게 변함) */
+        .monster-hit { 
+            filter: sepia(1) saturate(5) hue-rotate(-50deg) brightness(1.2) !important;
+            transform: scale(0.95);
+        }
         @keyframes monsterFloat { 50% { transform: translateY(-5px) scale(1.05); } }
 
         /* HP Bar */
         .hp-bar-container {
-            position: absolute; bottom: 85px; right: 15%; width: 80px; height: 8px;
-            background: #333; border: 2px solid #000; pointer-events: none;
+            position: absolute; bottom: 90px; right: 5%; width: 60px; height: 10px;
+            background: #000; border: 2px solid #fff; pointer-events: none; border-radius: 4px; z-index: 20;
         }
-        .hp-fill { height: 100%; background: #e74c3c; width: 100%; transition: width 0.1s; }
+        .hp-fill { height: 100%; background: #e74c3c; width: 100%; transition: width 0.1s linear; }
+        #hp-text {
+            position: absolute; top: -15px; left: 0; width: 100%; text-align: center;
+            color: #fff; font-size: 0.5rem; font-weight: bold; text-shadow: 1px 1px 0 #000;
+        }
 
-        /* Damage Text */
+        /* 데미지 텍스트 */
         .dmg-text {
             position: absolute; font-weight: bold; text-shadow: 2px 2px 0 #000;
-            pointer-events: none; animation: floatUp 0.6s forwards; z-index: 100;
+            pointer-events: none; animation: floatUp 0.6s forwards; z-index: 600;
         }
         @keyframes floatUp { 
             0% { transform: translateY(0) scale(1); opacity: 1; }
             100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
         }
 
-        /* 4. Game Area (Merge) */
+        /* 5. 게임 영역 (하단) */
         #game-area {
             flex: 1; display: flex; flex-direction: column; padding: 10px;
             background: var(--panel-bg); box-shadow: inset 0 5px 10px rgba(0,0,0,0.3);
+            min-height: 0; 
         }
+        
         .stats-bar {
-            display: flex; justify-content: space-between; margin-bottom: 10px;
+            display: flex; justify-content: space-between; margin-bottom: 5px;
             font-size: 0.8rem; color: var(--gold); text-shadow: 1px 1px 0 #000;
+            flex-shrink: 0; 
         }
+        
         #grid {
             display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
-            flex: 1; max-width: 500px; margin: 0 auto; width: 100%; aspect-ratio: 1;
+            width: 100%; max-width: 400px; aspect-ratio: 1; margin: 0 auto;
+            flex-shrink: 1; min-height: 0; 
         }
+        
         .slot {
             background: var(--slot-bg); border: 2px solid #111; border-radius: 4px;
             position: relative; display: flex; justify-content: center; align-items: center;
         }
+        
+        /* 아이템 (SVG) */
         .item {
-            font-size: 2rem; cursor: grab; position: absolute; z-index: 5;
-            filter: drop-shadow(2px 2px 0 #000); transition: transform 0.1s;
+            width: 70%; height: 70%;
+            cursor: grab; position: absolute; z-index: 5;
+            filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.5)); transition: transform 0.1s;
+            display: flex; justify-content: center; align-items: center;
         }
         .item.dragging { z-index: 100; pointer-events: none; transform: scale(1.2); opacity: 0.8; }
 
-        /* Controls */
-        .controls { margin-top: 10px; text-align: center; }
+        /* 컨트롤 버튼 */
+        .controls { 
+            margin-top: auto; padding-top: 10px; text-align: center; flex-shrink: 0; 
+        }
+        
+        /* 하단 큰 버튼 (구매) */
         button {
-            background: var(--accent); color: white; border: 4px solid #c0392b; padding: 15px;
+            background: var(--accent); color: white; border: 4px solid #c0392b; padding: 0;
             font-family: var(--pixel-font); font-size: 1rem; width: 100%; max-width: 500px;
             box-shadow: 0 4px 0 #96281b; cursor: pointer; text-transform: uppercase;
+            height: 60px; /* 버튼 높이 고정 (터치 용이) */
+            display: flex; align-items: center; justify-content: center;
         }
         button:active { transform: translateY(4px); box-shadow: none; }
         button:disabled { background: #7f8c8d; border-color: #555; box-shadow: none; color: #ccc; cursor: not-allowed; }
         
-        .modal-btn { width: auto; margin-top: 10px; padding: 10px 20px; font-size: 0.8rem; }
+        .modal-btn { width: auto; margin-top: 10px; padding: 0 20px; font-size: 0.8rem; height: 40px; }
     </style>
 </head>
 <body>
@@ -166,8 +210,8 @@
         <div class="sky-cloud"></div>
         <div class="ground"></div>
         <div class="stage-ui">
+            <div style="margin-bottom: 5px;">🚩 STAGE <span id="stage-num">1</span></div>
             <div>⚔️ DPS: <span id="dps-display">0</span></div>
-            <div>🚩 STAGE <span id="stage-num">1</span></div>
         </div>
         
         <div id="hero-wrapper" class="actor-wrapper hero-idle">
@@ -186,7 +230,10 @@
         </div>
 
         <div id="monster-wrapper" class="actor-wrapper monster-idle">
-            <div class="hp-bar-container"><div id="monster-hp-bar" class="hp-fill"></div></div>
+            <div class="hp-bar-container">
+                <div id="monster-hp-bar" class="hp-fill"></div>
+                <div id="hp-text"></div>
+            </div>
             <svg id="monster-svg" viewBox="0 0 12 12" shape-rendering="crispEdges">
                 <rect x="2" y="4" width="8" height="7" fill="currentColor" />
                 <rect x="3" y="3" width="6" height="1" fill="currentColor" />
@@ -225,14 +272,12 @@
           appId: "1:655295451453:web:ae0d1fc35d02f992ecf554"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
         // --- 전역 변수 ---
         window.myNickname = localStorage.getItem('pixelNick') || null;
         let game = { gold: 0, inventory: Array(16).fill(null), buyCount: 0, stage: 1, monsterHp: 20, maxHp: 20, bestStage: 1 };
-        const WEAPONS = ['🗡️', '⚔️', '🏹', '🪓', '🔱', '🔥', '💀', '💎', '🌙', '🌟'];
         let audioCtx = null;
         let isGameStarted = false;
 
@@ -240,11 +285,8 @@
         const loginModal = document.getElementById('login-modal');
         const loginMsg = document.getElementById('login-msg');
 
-        // 이미 닉네임이 있으면 바로 시작
         if (window.myNickname) {
             loginModal.style.display = 'none';
-            // 자동 시작 시에는 사운드 컨텍스트가 user gesture를 기다려야 하므로
-            // 첫 클릭(전투) 시 오디오가 켜지도록 처리됨
             startGame();
         }
 
@@ -255,7 +297,6 @@
                 return;
             }
 
-            // 중복 체크
             const docRef = doc(db, "ranks", input);
             try {
                 loginMsg.innerText = "CHECKING...";
@@ -265,13 +306,11 @@
                 } else {
                     localStorage.setItem('pixelNick', input);
                     window.myNickname = input;
-                    // 초기 데이터 생성
                     if (!docSnap.exists()) {
                         await setDoc(docRef, { score: 1, lastUpdate: new Date().toISOString() });
                     }
-                    
                     loginModal.style.display = 'none';
-                    initAudio(); // 버튼 클릭 시 오디오 활성화
+                    initAudio(); 
                     startGame();
                 }
             } catch (e) {
@@ -280,7 +319,6 @@
             }
         };
 
-        // 자동 랭킹 저장 (신기록 달성 시)
         async function autoSaveScore() {
             if (!window.myNickname) return;
             if (game.stage > game.bestStage) {
@@ -307,9 +345,9 @@
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
                     let color = 'white';
-                    if (rank === 1) color = '#ffd700'; // Gold
-                    else if (rank === 2) color = '#c0c0c0'; // Silver
-                    else if (rank === 3) color = '#cd7f32'; // Bronze
+                    if (rank === 1) color = '#ffd700';
+                    else if (rank === 2) color = '#c0c0c0';
+                    else if (rank === 3) color = '#cd7f32';
 
                     html += `<div style="display:flex; justify-content:space-between; color:${color}; margin-bottom: 5px; border-bottom:1px solid #333;">
                                 <span>${rank}. ${doc.id}</span>
@@ -319,12 +357,12 @@
                 });
                 listEl.innerHTML = html;
             } catch(e) {
-                listEl.innerHTML = "Error loading rank.<br>Check console.";
+                listEl.innerHTML = "Ranking Error";
                 console.error(e);
             }
         }
 
-        // --- 2. 사운드 시스템 (Web Audio API) ---
+        // --- 2. 사운드 시스템 ---
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -342,28 +380,28 @@
             
             const now = audioCtx.currentTime;
             
-            if (type === 'hit') { // 퍽! (Noise-like)
+            if (type === 'hit') { 
                 osc.type = 'square';
                 osc.frequency.setValueAtTime(150, now);
                 osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.1);
                 gainNode.gain.setValueAtTime(0.1, now);
                 gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
                 osc.start(now); osc.stop(now + 0.1);
-            } else if (type === 'click') { // 얍! (Higher pitch)
+            } else if (type === 'click') { 
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(400, now);
                 osc.frequency.linearRampToValueAtTime(100, now + 0.1);
                 gainNode.gain.setValueAtTime(0.1, now);
                 gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
                 osc.start(now); osc.stop(now + 0.1);
-            } else if (type === 'merge') { // 띠롱
+            } else if (type === 'merge') { 
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(400, now);
                 osc.frequency.linearRampToValueAtTime(800, now + 0.1);
                 gainNode.gain.setValueAtTime(0.1, now);
                 gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
                 osc.start(now); osc.stop(now + 0.1);
-            } else if (type === 'buy') { // 짤랑
+            } else if (type === 'buy') { 
                 osc.type = 'square';
                 osc.frequency.setValueAtTime(1200, now);
                 gainNode.gain.setValueAtTime(0.05, now);
@@ -372,7 +410,56 @@
             }
         }
 
-        // --- 3. 게임 코어 로직 ---
+        // --- 3. 절차적 무기 생성기 (무한 종류) ---
+        function generateWeaponSVG(level) {
+            const hue = (level * 37) % 360; 
+            const mainColor = `hsl(${hue}, 70%, 50%)`;
+            const lightColor = `hsl(${hue}, 90%, 70%)`;
+            const darkColor = `hsl(${hue}, 60%, 30%)`;
+            
+            const type = Math.floor(level / 5) % 5; 
+            const evolution = level % 5;
+            let bladePath = "";
+            
+            if (type === 0) { // 검
+                const bladeLen = 3 + evolution; 
+                bladePath = `<rect x="5" y="${8 - bladeLen}" width="2" height="${bladeLen}" fill="${mainColor}"/> 
+                             <rect x="5" y="${8 - bladeLen}" width="1" height="${bladeLen}" fill="${lightColor}"/> 
+                             <rect x="3" y="8" width="6" height="1" fill="${darkColor}"/> 
+                             <rect x="5" y="9" width="2" height="2" fill="#8d6e63"/>`;
+            } else if (type === 1) { // 도끼
+                bladePath = `<rect x="5" y="2" width="2" height="9" fill="#5d4037"/> 
+                             <rect x="2" y="2" width="3" height="${2 + evolution}" fill="${mainColor}"/> 
+                             <rect x="7" y="2" width="3" height="${2 + evolution}" fill="${mainColor}"/> 
+                             <rect x="2" y="2" width="1" height="${2 + evolution}" fill="${lightColor}"/>`;
+            } else if (type === 2) { // 창
+                bladePath = `<rect x="5" y="2" width="2" height="9" fill="#8d6e63"/> 
+                             <rect x="4" y="${1 + (4-evolution)}" width="4" height="4" fill="${mainColor}"/> 
+                             <rect x="5" y="${0 + (4-evolution)}" width="2" height="2" fill="${lightColor}"/>`;
+            } else if (type === 3) { // 망치
+                bladePath = `<rect x="5" y="3" width="2" height="8" fill="#5d4037"/> 
+                             <rect x="2" y="1" width="8" height="${3 + Math.floor(evolution/2)}" fill="${darkColor}"/> 
+                             <rect x="3" y="2" width="6" height="1" fill="${mainColor}"/>`;
+            } else { // 지팡이
+                bladePath = `<rect x="5" y="2" width="2" height="9" fill="#8d6e63"/> 
+                             <rect x="4" y="1" width="4" height="3" fill="${mainColor}"/> 
+                             <rect x="5" y="2" width="2" height="1" fill="${lightColor}"/> 
+                             <rect x="${3 - (evolution%2)}" y="2" width="1" height="1" fill="#fff" opacity="0.8"/>`;
+            }
+
+            let aura = "";
+            if (level > 0 && level % 10 === 0) {
+                aura = `<rect x="0" y="0" width="12" height="12" fill="${mainColor}" opacity="0.2">
+                        <animate attributeName="opacity" values="0.2;0.5;0.2" duration="0.5s" repeatCount="indefinite"/>
+                        </rect>`;
+            }
+
+            return `<svg viewBox="0 0 12 12" shape-rendering="crispEdges" style="width:100%; height:100%; pointer-events:none;">
+                ${aura} ${bladePath}
+            </svg>`;
+        }
+
+        // --- 4. 게임 코어 로직 ---
         function startGame() {
             document.getElementById('my-nick-display').innerText = window.myNickname || 'PLAYER';
             isGameStarted = true;
@@ -382,18 +469,17 @@
             requestAnimationFrame(combatLoop);
         }
 
-        // 유틸 함수
         function getBuyCost() { return Math.floor(10 * Math.pow(1.15, game.buyCount)); }
         function getWeaponDamage(level) { return Math.floor(10 * Math.pow(2.1, level)); }
         function getTotalDPS() { return game.inventory.reduce((sum, lvl) => (lvl !== null ? sum + getWeaponDamage(lvl) : sum), 0); }
         function getMonsterMaxHp(stage) { return Math.floor(30 * Math.pow(1.25, stage - 1)); }
 
-        // --- 전투 시스템 (자동 + 클릭) ---
+        // --- 전투 시스템 ---
         let lastTime = 0;
         function combatLoop(timestamp) {
             if (!isGameStarted) return;
             if (!lastTime) lastTime = timestamp;
-            if (timestamp - lastTime >= 1000) { // 1초마다 자동 공격
+            if (timestamp - lastTime >= 1000) { // 자동 공격
                 const dps = getTotalDPS();
                 if (dps > 0) attackMonster(dps, null, null, false);
                 lastTime = timestamp;
@@ -401,16 +487,12 @@
             requestAnimationFrame(combatLoop);
         }
 
-        // 클릭/터치 이벤트 (전투 영역)
         const stageZone = document.getElementById('stage-area');
         stageZone.addEventListener('pointerdown', (e) => {
             if (!isGameStarted || game.monsterHp <= 0) return;
-            initAudio(); // 첫 클릭 시 오디오 활성화 보장
-            
-            // 클릭 데미지 = DPS (DPS가 0이어도 최소 1 데미지)
+            initAudio(); 
             const dps = getTotalDPS();
-            const dmg = Math.max(1, dps); 
-            
+            const dmg = Math.max(1, dps); // 클릭 데미지 = DPS
             attackMonster(dmg, e.clientX, e.clientY, true);
         });
 
@@ -418,26 +500,20 @@
             const hero = document.getElementById('hero-wrapper');
             const monster = document.getElementById('monster-wrapper');
 
-            // Hero Animation (Reset for instant feedback)
             hero.classList.remove('hero-attack');
             void hero.offsetWidth; 
             hero.classList.add('hero-attack');
 
-            // Monster Damage
             game.monsterHp -= damage;
             updateHpBar();
             
-            // Visual & Sound
             showDamageText(damage, x, y, isClick);
-            if (isClick) playSfx('click'); 
-            else playSfx('hit');
+            if (isClick) playSfx('click'); else playSfx('hit');
 
-            // Monster Hit Effect
             monster.classList.remove('monster-hit');
             void monster.offsetWidth;
             monster.classList.add('monster-hit');
 
-            // Death Check
             if (game.monsterHp <= 0) killMonster();
         }
 
@@ -447,8 +523,7 @@
             game.maxHp = getMonsterMaxHp(game.stage);
             game.monsterHp = game.maxHp;
 
-            autoSaveScore(); // 스테이지 클리어 시 자동 저장
-            
+            autoSaveScore();
             updateMonsterAppearance();
             updateHpBar();
             render();
@@ -458,16 +533,13 @@
             const el = document.createElement('div');
             el.className = 'dmg-text';
             el.innerHTML = isClick ? `💥${dmg}` : `-${dmg}`;
-            
-            // 클릭은 노란색 크게, 자동은 흰색 작게
             el.style.color = isClick ? '#fff176' : '#fff'; 
             el.style.fontSize = isClick ? '1.5rem' : '1.0rem';
-            el.style.zIndex = 100;
+            el.style.zIndex = 600;
 
             if (x !== null && y !== null) {
                 el.style.left = `${x}px`; el.style.top = `${y}px`;
             } else {
-                // 몬스터 근처 랜덤
                 const mRect = document.getElementById('monster-wrapper').getBoundingClientRect();
                 const rX = (Math.random() - 0.5) * 60;
                 el.style.left = `${mRect.left + 30 + rX}px`;
@@ -480,6 +552,11 @@
         function updateHpBar() {
             const pct = Math.max(0, (game.monsterHp / game.maxHp) * 100);
             document.getElementById('monster-hp-bar').style.width = pct + '%';
+            
+            // HP 숫자 표시 업데이트
+            const cur = Math.ceil(Math.max(0, game.monsterHp));
+            const max = Math.ceil(game.maxHp);
+            document.getElementById('hp-text').innerText = `${cur}/${max}`;
         }
         
         function updateMonsterAppearance() {
@@ -489,7 +566,7 @@
             document.getElementById('monster-svg').style.fill = `hsl(${hue}, 70%, 60%)`;
         }
 
-        // --- 4. 머지 & 렌더링 ---
+        // --- 5. 머지 & 렌더링 ---
         function initGrid() {
             const gridEl = document.getElementById('grid');
             gridEl.innerHTML = '';
@@ -517,7 +594,16 @@
                 const level = game.inventory[idx];
                 if (level !== null) {
                     const el = document.createElement('div'); el.className = 'item';
-                    el.innerText = WEAPONS[level] || '👑';
+                    
+                    // 절차적 무기 생성 SVG 삽입
+                    el.innerHTML = generateWeaponSVG(level);
+                    
+                    // 레벨 배지
+                    const badge = document.createElement('div');
+                    badge.innerText = `Lv.${level}`;
+                    badge.style.cssText = "position:absolute; bottom:0; right:0; font-size:0.4rem; color:#fff; background:rgba(0,0,0,0.5); padding:1px; border-radius:2px;";
+                    el.appendChild(badge);
+
                     addDragEvents(el); slot.appendChild(el);
                 }
             });
@@ -531,8 +617,10 @@
             el.addEventListener('touchstart', startDrag, {passive: false}); 
         }
         function startDrag(e) {
-            if(e.type === 'touchstart') e.preventDefault(); // 모바일 스크롤 방지
-            dragged = e.target; startIdx = parseInt(dragged.parentElement.dataset.index);
+            if(e.type === 'touchstart') e.preventDefault();
+            dragged = e.target.closest('.item'); // item 클래스 선택 보장
+            if(!dragged) return;
+            startIdx = parseInt(dragged.parentElement.dataset.index);
             const cX = e.touches ? e.touches[0].clientX : e.clientX; 
             const cY = e.touches ? e.touches[0].clientY : e.clientY;
             const r = dragged.getBoundingClientRect(); 
@@ -573,17 +661,13 @@
         function handleMerge(from, to) {
             if(from === to) return; 
             const i1 = game.inventory[from], i2 = game.inventory[to];
-            
-            if(i2 === null) { // 이동
+            if(i2 === null) { 
                 game.inventory[to] = i1; game.inventory[from] = null; 
-            } else if(i1 === i2) { // 합치기
-                if(i1 < WEAPONS.length - 1) { 
-                    game.inventory[to] = i1 + 1; game.inventory[from] = null; 
-                    playSfx('merge');
-                } else { // 만렙 교체
-                    game.inventory[to] = i1; game.inventory[from] = i2; 
-                } 
-            } else { // 교체
+            } else if(i1 === i2) { 
+                // 무한 레벨업 가능 (제한 없음)
+                game.inventory[to] = i1 + 1; game.inventory[from] = null; 
+                playSfx('merge');
+            } else { 
                 game.inventory[to] = i1; game.inventory[from] = i2; 
             }
         }
@@ -602,15 +686,15 @@
             const s = localStorage.getItem('knightMergeSave'); 
             if(s) { 
                 game = JSON.parse(s); 
-                if(!game.bestStage) game.bestStage = game.stage; // 구버전 데이터 호환
+                if(!game.bestStage) game.bestStage = game.stage;
             } else {
-                game.gold = 100; // 초기 자금
+                game.gold = 100;
             }
             updateMonsterAppearance(); 
         }
         
         window.resetData = function() { 
-            if(confirm("모든 데이터를 초기화하시겠습니까?")) { 
+            if(confirm("초기화하시겠습니까?")) { 
                 localStorage.removeItem('knightMergeSave'); 
                 localStorage.removeItem('pixelNick'); 
                 location.reload(); 
