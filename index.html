@@ -22,55 +22,78 @@
             margin: 0; padding: 0;
             background-color: var(--bg-color); color: var(--text);
             font-family: var(--pixel-font);
-            /* 모바일 브라우저 주소창 제외한 실제 높이 */
+            /* 모바일 브라우저 주소창 제외한 실제 높이 & 홈바 여백 */
             height: 100dvh; 
             display: flex; flex-direction: column;
             overflow: hidden;
-            /* 아이폰 하단 홈 바 영역만큼 패딩 추가 */
             padding-bottom: env(safe-area-inset-bottom);
         }
 
-        /* --- UI Components --- */
-        /* 1. 로그인 모달 */
-        #login-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        /* --- 1. 모달 (로그인, 랭킹, 가이드) 공통 스타일 --- */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); z-index: 10000;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            flex-direction: column; justify-content: center; align-items: center;
         }
+        
+        .modal-box {
+            background: #222; border: 4px solid #fff; padding: 20px;
+            width: 85%; max-width: 350px; text-align: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8); position: relative;
+        }
+
+        /* 로그인 모달 */
+        #login-modal { display: flex; } /* 처음에 보임 */
         #login-modal input {
             padding: 15px; font-family: inherit; font-size: 1.2rem; text-align: center; 
-            margin-bottom: 20px; width: 80%; max-width: 300px; text-transform: uppercase;
+            margin-bottom: 20px; width: 90%; text-transform: uppercase;
             border: 4px solid #fff; background: #000; color: #fff;
         }
-        
-        /* 2. 랭킹 오버레이 */
-        #rank-overlay { 
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 85%; max-width: 350px; background: #222; border: 4px solid #fff; padding: 20px; 
-            z-index: 9000; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.8);
+
+        /* 가이드 모달 */
+        .guide-step {
+            display: flex; align-items: center; margin-bottom: 15px; text-align: left; font-size: 0.7rem; line-height: 1.4;
         }
-        
-        /* 3. 랭킹 버튼 (작고 귀엽게 우측 상단 배치) */
-        #rank-btn { 
+        .guide-icon { font-size: 1.5rem; margin-right: 15px; min-width: 40px; text-align: center; }
+
+        /* --- 2. 상단 버튼 (랭킹, 도움말) --- */
+        .top-btn {
             position: absolute; 
             top: calc(env(safe-area-inset-top) + 15px); 
-            right: 15px; 
             z-index: 500; 
             width: auto !important; height: auto !important;
             padding: 6px 10px; font-size: 0.6rem; 
-            background: rgba(0,0,0,0.7); border: 1px solid gold; border-radius: 8px;
-            color: gold; cursor: pointer;
+            background: rgba(0,0,0,0.7); border-radius: 6px;
+            cursor: pointer;
+        }
+        #rank-btn { 
+            /* 노치/다이내믹 아일랜드 아래 */
+            top: calc(env(safe-area-inset-top) + 15px); 
+            right: 15px; 
+            
+            /* 스타일 유지 */
+            border: 1px solid gold; 
+            color: gold; 
+        }
+        #help-btn { 
+            /* 랭킹 버튼 높이(약 30px) + 간격(10px) 만큼 더 아래로 내림 */
+            top: calc(env(safe-area-inset-top) + 55px); 
+            right: 15px; /* 랭킹 버튼과 줄 맞춤 */
+            
+            /* 스타일 유지 */
+            border: 1px solid #fff; 
+            color: #fff; 
         }
 
-        /* 4. 전투 화면 (상단) */
+        /* --- 3. 전투 화면 --- */
         #stage-area {
-            flex: 0 0 35%; /* 화면의 35% 차지 */
+            flex: 0 0 35%; /* 화면의 35% */
             background: #87CEEB; position: relative; 
             overflow: hidden; border-bottom: 4px solid #000; 
             image-rendering: pixelated; cursor: crosshair;
         }
         
-        /* 정보창 (왼쪽 상단 세로 배치) */
+        /* 정보창 (왼쪽 상단) */
         .stage-ui {
             position: absolute; 
             top: calc(env(safe-area-inset-top) + 15px); 
@@ -106,8 +129,6 @@
 
         #monster-wrapper { right: 15%; z-index: 9; transition: filter 0.05s; }
         .monster-idle { animation: monsterFloat 1.5s infinite ease-in-out; }
-        
-        /* 몬스터 피격 효과 (붉게 변함) */
         .monster-hit { 
             filter: sepia(1) saturate(5) hue-rotate(-50deg) brightness(1.2) !important;
             transform: scale(0.95);
@@ -135,7 +156,7 @@
             100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
         }
 
-        /* 5. 게임 영역 (하단) */
+        /* --- 4. 게임 영역 (하단) --- */
         #game-area {
             flex: 1; display: flex; flex-direction: column; padding: 10px;
             background: var(--panel-bg); box-shadow: inset 0 5px 10px rgba(0,0,0,0.3);
@@ -189,7 +210,7 @@
 </head>
 <body>
 
-    <div id="login-modal">
+    <div id="login-modal" class="modal-overlay">
         <h1 style="color:white; text-shadow: 4px 4px 0 #000; margin-bottom: 30px; text-align: center; line-height: 1.5;">PIXEL<br>KNIGHT</h1>
         <input type="text" id="nickname-input" placeholder="NICKNAME (ENG)" maxlength="8">
         <button onclick="checkAndStart()" style="width: 80%; max-width: 300px;">GAME START</button>
@@ -197,14 +218,43 @@
         <p style="color: #ccc; font-size: 0.6rem; margin-top: 30px;">SOUND ON 🔊</p>
     </div>
 
-    <button id="rank-btn" onclick="openRanking()">🏆 RANK</button>
-    <div id="rank-overlay">
-        <h3 style="color: gold; margin-top: 0;">HALL OF FAME</h3>
-        <div id="rank-list" style="text-align: left; font-size: 0.8rem; line-height: 1.8; min-height: 150px; color: white; margin-bottom: 20px;">
-            Loading...
+    <div id="guide-modal" class="modal-overlay" style="background: rgba(0,0,0,0.9);">
+        <div class="modal-box">
+            <h3 style="color: #fff; margin-bottom: 20px; border-bottom: 2px solid #555; padding-bottom: 10px;">HOW TO PLAY</h3>
+            
+            <div class="guide-step">
+                <div class="guide-icon">🖱️</div>
+                <div>화면을 <b>클릭</b>해서 몬스터를 공격하세요!<br>(광클하면 더 빨리 잡아요)</div>
+            </div>
+            <div class="guide-step">
+                <div class="guide-icon">💰</div>
+                <div>몬스터를 잡고 <b>골드</b>를 모으세요.</div>
+            </div>
+            <div class="guide-step">
+                <div class="guide-icon">🗡️</div>
+                <div><b>[WEAPON]</b> 버튼으로 무기를 뽑으세요.</div>
+            </div>
+            <div class="guide-step">
+                <div class="guide-icon">💎</div>
+                <div>같은 무기를 <b>드래그</b>해서 합치면<br>더 강력한 무기가 됩니다!</div>
+            </div>
+
+            <button class="modal-btn" onclick="closeGuide()" style="background: var(--gold); color: #000; border-color: #fff; width: 100%;">I'M READY!</button>
         </div>
-        <button class="modal-btn" onclick="document.getElementById('rank-overlay').style.display='none'">CLOSE</button>
     </div>
+
+    <div id="rank-overlay" class="modal-overlay">
+        <div class="modal-box">
+            <h3 style="color: gold; margin-top: 0;">HALL OF FAME</h3>
+            <div id="rank-list" style="text-align: left; font-size: 0.8rem; line-height: 1.8; min-height: 150px; color: white; margin-bottom: 20px;">
+                Loading...
+            </div>
+            <button class="modal-btn" onclick="document.getElementById('rank-overlay').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
+    <button id="help-btn" class="top-btn" onclick="openGuide()">❓ HELP</button>
+    <button id="rank-btn" class="top-btn" onclick="openRanking()">🏆 RANK</button>
 
     <div id="stage-area">
         <div class="sky-cloud"></div>
@@ -216,16 +266,7 @@
         
         <div id="hero-wrapper" class="actor-wrapper hero-idle">
             <svg viewBox="0 0 12 12" shape-rendering="crispEdges">
-                <rect x="5" y="0" width="2" height="1" fill="#e74c3c" />
-                <rect x="4" y="1" width="4" height="3" fill="#95a5a6" />
-                <rect x="5" y="2" width="2" height="1" fill="#000" />
-                <rect x="3" y="4" width="6" height="4" fill="#34495e" />
-                <rect x="5" y="5" width="2" height="2" fill="#bdc3c7" />
-                <rect x="4" y="8" width="1" height="3" fill="#2c3e50" />
-                <rect x="7" y="8" width="1" height="3" fill="#2c3e50" />
-                <rect x="9" y="5" width="1" height="1" fill="#8e44ad" />
-                <rect x="9" y="2" width="1" height="3" fill="#ecf0f1" />
-                <rect x="2" y="5" width="2" height="3" fill="#f1c40f" />
+                <rect x="5" y="0" width="2" height="1" fill="#e74c3c" /><rect x="4" y="1" width="4" height="3" fill="#95a5a6" /><rect x="5" y="2" width="2" height="1" fill="#000" /><rect x="3" y="4" width="6" height="4" fill="#34495e" /><rect x="5" y="5" width="2" height="2" fill="#bdc3c7" /><rect x="4" y="8" width="1" height="3" fill="#2c3e50" /><rect x="7" y="8" width="1" height="3" fill="#2c3e50" /><rect x="9" y="5" width="1" height="1" fill="#8e44ad" /><rect x="9" y="2" width="1" height="3" fill="#ecf0f1" /><rect x="2" y="5" width="2" height="3" fill="#f1c40f" />
             </svg>
         </div>
 
@@ -235,13 +276,7 @@
                 <div id="hp-text"></div>
             </div>
             <svg id="monster-svg" viewBox="0 0 12 12" shape-rendering="crispEdges">
-                <rect x="2" y="4" width="8" height="7" fill="currentColor" />
-                <rect x="3" y="3" width="6" height="1" fill="currentColor" />
-                <rect x="3" y="5" width="2" height="2" fill="#fff" />
-                <rect x="7" y="5" width="2" height="2" fill="#fff" />
-                <rect x="4" y="6" width="1" height="1" fill="#000" />
-                <rect x="8" y="6" width="1" height="1" fill="#000" />
-                <rect x="5" y="9" width="2" height="1" fill="#330000" opacity="0.5" />
+                <rect x="2" y="4" width="8" height="7" fill="currentColor" /><rect x="3" y="3" width="6" height="1" fill="currentColor" /><rect x="3" y="5" width="2" height="2" fill="#fff" /><rect x="7" y="5" width="2" height="2" fill="#fff" /><rect x="4" y="6" width="1" height="1" fill="#000" /><rect x="8" y="6" width="1" height="1" fill="#000" /><rect x="5" y="9" width="2" height="1" fill="#330000" opacity="0.5" />
             </svg>
         </div>
     </div>
@@ -263,13 +298,14 @@
         import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs } 
           from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
+        // 🔴🔴🔴 본인의 설정값으로 변경 필수 🔴🔴🔴
         const firebaseConfig = {
-          apiKey: "AIzaSyAv0ZL9zviZYaHINFpX0j7kkwlB7SvcMzM",
-          authDomain: "pixel-merge-game.firebaseapp.com",
-          projectId: "pixel-merge-game",
-          storageBucket: "pixel-merge-game.firebasestorage.app",
-          messagingSenderId: "655295451453",
-          appId: "1:655295451453:web:ae0d1fc35d02f992ecf554"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -280,22 +316,25 @@
         let game = { gold: 0, inventory: Array(16).fill(null), buyCount: 0, stage: 1, monsterHp: 20, maxHp: 20, bestStage: 1 };
         let audioCtx = null;
         let isGameStarted = false;
+        let bgmInterval = null;
+        let isMuted = false;
 
-        // --- 1. 로그인 & 랭킹 시스템 ---
+        // --- 1. 로그인, 가이드, 랭킹 ---
         const loginModal = document.getElementById('login-modal');
+        const guideModal = document.getElementById('guide-modal');
         const loginMsg = document.getElementById('login-msg');
 
+        // 이미 로그인 되어있으면 바로 가이드 혹은 게임 시작
         if (window.myNickname) {
             loginModal.style.display = 'none';
+            // 닉네임이 있어도 처음 킨 거라면 가이드를 보여줄지 말지 선택
+            // 여기서는 바로 게임 시작하되 도움말 버튼 사용 유도
             startGame();
         }
 
         window.checkAndStart = async () => {
             const input = document.getElementById('nickname-input').value.trim().toUpperCase();
-            if (input.length < 2) {
-                loginMsg.innerText = "2글자 이상 입력하세요.";
-                return;
-            }
+            if (input.length < 2) { loginMsg.innerText = "2글자 이상 입력하세요."; return; }
 
             const docRef = doc(db, "ranks", input);
             try {
@@ -310,14 +349,24 @@
                         await setDoc(docRef, { score: 1, lastUpdate: new Date().toISOString() });
                     }
                     loginModal.style.display = 'none';
-                    initAudio(); 
-                    startGame();
+                    // ★ 로그인 성공 후 가이드 보여주기 ★
+                    openGuide();
                 }
             } catch (e) {
                 console.error(e);
-                loginMsg.innerText = "서버 연결 오류 (Config 확인)";
+                loginMsg.innerText = "서버 연결 오류";
             }
         };
+
+        // 가이드 관련 함수
+        window.openGuide = function() {
+            guideModal.style.display = 'flex';
+        }
+        
+        window.closeGuide = function() {
+            guideModal.style.display = 'none';
+            if (!isGameStarted) startGame(); // 가이드 닫으면 게임 시작
+        }
 
         async function autoSaveScore() {
             if (!window.myNickname) return;
@@ -325,147 +374,105 @@
                 game.bestStage = game.stage;
                 try {
                     await setDoc(doc(db, "ranks", window.myNickname), { 
-                        score: game.stage, 
-                        lastUpdate: new Date().toISOString() 
+                        score: game.stage, lastUpdate: new Date().toISOString() 
                     }, { merge: true });
                 } catch(e) {}
             }
         }
 
         window.openRanking = async () => {
-            document.getElementById('rank-overlay').style.display = 'block';
+            document.getElementById('rank-overlay').style.display = 'flex';
             const listEl = document.getElementById('rank-list');
             listEl.innerHTML = "Loading...";
-
             try {
                 const q = query(collection(db, "ranks"), orderBy("score", "desc"), limit(10));
                 const querySnapshot = await getDocs(q);
-                let html = "";
-                let rank = 1;
+                let html = ""; let rank = 1;
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    let color = 'white';
-                    if (rank === 1) color = '#ffd700';
-                    else if (rank === 2) color = '#c0c0c0';
-                    else if (rank === 3) color = '#cd7f32';
-
+                    let color = rank === 1 ? '#ffd700' : (rank === 2 ? '#c0c0c0' : (rank === 3 ? '#cd7f32' : 'white'));
                     html += `<div style="display:flex; justify-content:space-between; color:${color}; margin-bottom: 5px; border-bottom:1px solid #333;">
-                                <span>${rank}. ${doc.id}</span>
-                                <span>${data.score} F</span>
-                             </div>`;
+                                <span>${rank}. ${doc.id}</span><span>${data.score} F</span></div>`;
                     rank++;
                 });
                 listEl.innerHTML = html;
-            } catch(e) {
-                listEl.innerHTML = "Ranking Error";
-                console.error(e);
-            }
+            } catch(e) { listEl.innerHTML = "Error"; }
         }
 
-        // --- 2. 사운드 시스템 ---
+        // --- 2. 사운드 시스템 (폴리포닉 BGM) ---
         function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            } else if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+            if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } 
+            else if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+            playBgm(); 
+        }
+
+        function playBgm() {
+            if (!audioCtx || isMuted || bgmInterval) return;
+            const tempo = 150; const secondsPerBeat = 60.0 / tempo; const noteTime = secondsPerBeat / 2;
+            const N = { c3:130.81, d3:146.83, e3:164.81, f3:174.61, g3:196.00, a3:220.00, b3:246.94, c4:261.63, d4:293.66, e4:329.63, f4:349.23, g4:392.00, a4:440.00, b4:493.88, _:null };
+            const melody = [N.e4,N._,N.e4,N.f4,N.g4,N._,N.g4,N.a4,N.g4,N.f4,N.e4,N.d4,N.c4,N._,N.c4,N.e4,N.d4,N.d4,N.e4,N._,N.c4,N._,N.g3,N._,N.a3,N.b3,N.c4,N.d4,N.e4,N.c4,N.d4,N.g4];
+            const bass = [N.c3,N.c3,N.e3,N.e3,N.g3,N.g3,N.c4,N.c4,N.f3,N.f3,N.a3,N.a3,N.c4,N.c4,N.a3,N.a3,N.d3,N.d3,N.f3,N.f3,N.a3,N.a3,N.d4,N.d4,N.g3,N.g3,N.b3,N.b3,N.d4,N.d4,N.g3,N.g3];
+            let step = 0;
+            bgmInterval = setInterval(() => {
+                if (!audioCtx || isMuted) return;
+                const now = audioCtx.currentTime;
+                const m = melody[step % melody.length]; const b = bass[step % bass.length];
+                if (m) {
+                    const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='square'; o.frequency.setValueAtTime(m,now);
+                    g.gain.setValueAtTime(0.05,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.1);
+                    o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2);
+                }
+                if (b) {
+                    const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='triangle'; o.frequency.setValueAtTime(b,now);
+                    g.gain.setValueAtTime(0.08,now); g.gain.linearRampToValueAtTime(0,now+0.2);
+                    o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2);
+                }
+                if (step%4===0) {
+                    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+                    if(step%8===0){ o.frequency.setValueAtTime(150,now); o.frequency.exponentialRampToValueAtTime(0.01,now+0.5); g.gain.setValueAtTime(0.2,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.5); }
+                    else { o.type='square'; o.frequency.setValueAtTime(1000,now); g.gain.setValueAtTime(0.03,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.1); }
+                    o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2);
+                }
+                step++;
+            }, noteTime * 1000);
         }
 
         function playSfx(type) {
             if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
-            const now = audioCtx.currentTime;
-            
-            if (type === 'hit') { 
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.1);
-                gainNode.gain.setValueAtTime(0.1, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
-            } else if (type === 'click') { 
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(400, now);
-                osc.frequency.linearRampToValueAtTime(100, now + 0.1);
-                gainNode.gain.setValueAtTime(0.1, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
-            } else if (type === 'merge') { 
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(400, now);
-                osc.frequency.linearRampToValueAtTime(800, now + 0.1);
-                gainNode.gain.setValueAtTime(0.1, now);
-                gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
-            } else if (type === 'buy') { 
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(1200, now);
-                gainNode.gain.setValueAtTime(0.05, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
-            }
+            const now = audioCtx.currentTime; const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+            if(type==='hit'){ o.type='sawtooth'; o.frequency.setValueAtTime(220,now); o.frequency.exponentialRampToValueAtTime(0.01,now+0.1); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.1); o.start(now); o.stop(now+0.1); }
+            else if(type==='click'){ o.type='triangle'; o.frequency.setValueAtTime(600,now); o.frequency.linearRampToValueAtTime(100,now+0.05); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.05); o.start(now); o.stop(now+0.05); }
+            else if(type==='merge'){ o.type='sine'; o.frequency.setValueAtTime(440,now); o.frequency.linearRampToValueAtTime(880,now+0.2); g.gain.setValueAtTime(0.1,now); g.gain.linearRampToValueAtTime(0,now+0.2); o.start(now); o.stop(now+0.2); }
+            else if(type==='buy'){ o.type='square'; o.frequency.setValueAtTime(1200,now); g.gain.setValueAtTime(0.05,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.1); o.start(now); o.stop(now+0.1); }
         }
 
-        // --- 3. 절차적 무기 생성기 (무한 종류) ---
+        // --- 3. 절차적 무기 생성기 ---
         function generateWeaponSVG(level) {
             const hue = (level * 37) % 360; 
-            const mainColor = `hsl(${hue}, 70%, 50%)`;
-            const lightColor = `hsl(${hue}, 90%, 70%)`;
-            const darkColor = `hsl(${hue}, 60%, 30%)`;
-            
-            const type = Math.floor(level / 5) % 5; 
-            const evolution = level % 5;
-            let bladePath = "";
-            
-            if (type === 0) { // 검
-                const bladeLen = 3 + evolution; 
-                bladePath = `<rect x="5" y="${8 - bladeLen}" width="2" height="${bladeLen}" fill="${mainColor}"/> 
-                             <rect x="5" y="${8 - bladeLen}" width="1" height="${bladeLen}" fill="${lightColor}"/> 
-                             <rect x="3" y="8" width="6" height="1" fill="${darkColor}"/> 
-                             <rect x="5" y="9" width="2" height="2" fill="#8d6e63"/>`;
-            } else if (type === 1) { // 도끼
-                bladePath = `<rect x="5" y="2" width="2" height="9" fill="#5d4037"/> 
-                             <rect x="2" y="2" width="3" height="${2 + evolution}" fill="${mainColor}"/> 
-                             <rect x="7" y="2" width="3" height="${2 + evolution}" fill="${mainColor}"/> 
-                             <rect x="2" y="2" width="1" height="${2 + evolution}" fill="${lightColor}"/>`;
-            } else if (type === 2) { // 창
-                bladePath = `<rect x="5" y="2" width="2" height="9" fill="#8d6e63"/> 
-                             <rect x="4" y="${1 + (4-evolution)}" width="4" height="4" fill="${mainColor}"/> 
-                             <rect x="5" y="${0 + (4-evolution)}" width="2" height="2" fill="${lightColor}"/>`;
-            } else if (type === 3) { // 망치
-                bladePath = `<rect x="5" y="3" width="2" height="8" fill="#5d4037"/> 
-                             <rect x="2" y="1" width="8" height="${3 + Math.floor(evolution/2)}" fill="${darkColor}"/> 
-                             <rect x="3" y="2" width="6" height="1" fill="${mainColor}"/>`;
-            } else { // 지팡이
-                bladePath = `<rect x="5" y="2" width="2" height="9" fill="#8d6e63"/> 
-                             <rect x="4" y="1" width="4" height="3" fill="${mainColor}"/> 
-                             <rect x="5" y="2" width="2" height="1" fill="${lightColor}"/> 
-                             <rect x="${3 - (evolution%2)}" y="2" width="1" height="1" fill="#fff" opacity="0.8"/>`;
+            const main = `hsl(${hue}, 70%, 50%)`; const light = `hsl(${hue}, 90%, 70%)`; const dark = `hsl(${hue}, 60%, 30%)`;
+            const type = Math.floor(level / 5) % 5; const evo = level % 5;
+            let path = "";
+            if (type === 0) { 
+                const len = 3 + evo; 
+                path = `<rect x="5" y="${8 - len}" width="2" height="${len}" fill="${main}"/> <rect x="5" y="${8 - len}" width="1" height="${len}" fill="${light}"/> <rect x="3" y="8" width="6" height="1" fill="${dark}"/> <rect x="5" y="9" width="2" height="2" fill="#8d6e63"/>`;
+            } else if (type === 1) { 
+                path = `<rect x="5" y="2" width="2" height="9" fill="#5d4037"/> <rect x="2" y="2" width="3" height="${2 + evo}" fill="${main}"/> <rect x="7" y="2" width="3" height="${2 + evo}" fill="${main}"/> <rect x="2" y="2" width="1" height="${2 + evo}" fill="${light}"/>`;
+            } else if (type === 2) { 
+                path = `<rect x="5" y="2" width="2" height="9" fill="#8d6e63"/> <rect x="4" y="${1 + (4-evo)}" width="4" height="4" fill="${main}"/> <rect x="5" y="${0 + (4-evo)}" width="2" height="2" fill="${light}"/>`;
+            } else if (type === 3) { 
+                path = `<rect x="5" y="3" width="2" height="8" fill="#5d4037"/> <rect x="2" y="1" width="8" height="${3 + Math.floor(evo/2)}" fill="${dark}"/> <rect x="3" y="2" width="6" height="1" fill="${main}"/>`;
+            } else { 
+                path = `<rect x="5" y="2" width="2" height="9" fill="#8d6e63"/> <rect x="4" y="1" width="4" height="3" fill="${main}"/> <rect x="5" y="2" width="2" height="1" fill="${light}"/> <rect x="${3 - (evo%2)}" y="2" width="1" height="1" fill="#fff" opacity="0.8"/>`;
             }
-
-            let aura = "";
-            if (level > 0 && level % 10 === 0) {
-                aura = `<rect x="0" y="0" width="12" height="12" fill="${mainColor}" opacity="0.2">
-                        <animate attributeName="opacity" values="0.2;0.5;0.2" duration="0.5s" repeatCount="indefinite"/>
-                        </rect>`;
-            }
-
-            return `<svg viewBox="0 0 12 12" shape-rendering="crispEdges" style="width:100%; height:100%; pointer-events:none;">
-                ${aura} ${bladePath}
-            </svg>`;
+            let aura = (level > 0 && level % 10 === 0) ? `<rect x="0" y="0" width="12" height="12" fill="${main}" opacity="0.2"><animate attributeName="opacity" values="0.2;0.5;0.2" duration="0.5s" repeatCount="indefinite"/></rect>` : "";
+            return `<svg viewBox="0 0 12 12" shape-rendering="crispEdges" style="width:100%; height:100%; pointer-events:none;">${aura} ${path}</svg>`;
         }
 
-        // --- 4. 게임 코어 로직 ---
+        // --- 4. 게임 코어 ---
         function startGame() {
             document.getElementById('my-nick-display').innerText = window.myNickname || 'PLAYER';
             isGameStarted = true;
-            initGrid();
-            loadData();
-            render();
+            initGrid(); loadData(); render();
             requestAnimationFrame(combatLoop);
         }
 
@@ -474,12 +481,11 @@
         function getTotalDPS() { return game.inventory.reduce((sum, lvl) => (lvl !== null ? sum + getWeaponDamage(lvl) : sum), 0); }
         function getMonsterMaxHp(stage) { return Math.floor(30 * Math.pow(1.25, stage - 1)); }
 
-        // --- 전투 시스템 ---
         let lastTime = 0;
         function combatLoop(timestamp) {
             if (!isGameStarted) return;
             if (!lastTime) lastTime = timestamp;
-            if (timestamp - lastTime >= 1000) { // 자동 공격
+            if (timestamp - lastTime >= 1000) { 
                 const dps = getTotalDPS();
                 if (dps > 0) attackMonster(dps, null, null, false);
                 lastTime = timestamp;
@@ -492,28 +498,19 @@
             if (!isGameStarted || game.monsterHp <= 0) return;
             initAudio(); 
             const dps = getTotalDPS();
-            const dmg = Math.max(1, dps); // 클릭 데미지 = DPS
+            const dmg = Math.max(1, dps); 
             attackMonster(dmg, e.clientX, e.clientY, true);
         });
 
         function attackMonster(damage, x, y, isClick) {
             const hero = document.getElementById('hero-wrapper');
             const monster = document.getElementById('monster-wrapper');
-
-            hero.classList.remove('hero-attack');
-            void hero.offsetWidth; 
-            hero.classList.add('hero-attack');
-
+            hero.classList.remove('hero-attack'); void hero.offsetWidth; hero.classList.add('hero-attack');
             game.monsterHp -= damage;
             updateHpBar();
-            
             showDamageText(damage, x, y, isClick);
             if (isClick) playSfx('click'); else playSfx('hit');
-
-            monster.classList.remove('monster-hit');
-            void monster.offsetWidth;
-            monster.classList.add('monster-hit');
-
+            monster.classList.remove('monster-hit'); void monster.offsetWidth; monster.classList.add('monster-hit');
             if (game.monsterHp <= 0) killMonster();
         }
 
@@ -522,41 +519,22 @@
             game.stage++;
             game.maxHp = getMonsterMaxHp(game.stage);
             game.monsterHp = game.maxHp;
-
-            autoSaveScore();
-            updateMonsterAppearance();
-            updateHpBar();
-            render();
+            autoSaveScore(); updateMonsterAppearance(); updateHpBar(); render();
         }
 
         function showDamageText(dmg, x, y, isClick) {
-            const el = document.createElement('div');
-            el.className = 'dmg-text';
+            const el = document.createElement('div'); el.className = 'dmg-text';
             el.innerHTML = isClick ? `💥${dmg}` : `-${dmg}`;
-            el.style.color = isClick ? '#fff176' : '#fff'; 
-            el.style.fontSize = isClick ? '1.5rem' : '1.0rem';
-            el.style.zIndex = 600;
-
-            if (x !== null && y !== null) {
-                el.style.left = `${x}px`; el.style.top = `${y}px`;
-            } else {
-                const mRect = document.getElementById('monster-wrapper').getBoundingClientRect();
-                const rX = (Math.random() - 0.5) * 60;
-                el.style.left = `${mRect.left + 30 + rX}px`;
-                el.style.top = `${mRect.top}px`;
-            }
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 600);
+            el.style.color = isClick ? '#fff176' : '#fff'; el.style.fontSize = isClick ? '1.5rem' : '1.0rem'; el.style.zIndex = 600;
+            if (x !== null && y !== null) { el.style.left = `${x}px`; el.style.top = `${y}px`; } 
+            else { const mRect = document.getElementById('monster-wrapper').getBoundingClientRect(); const rX = (Math.random() - 0.5) * 60; el.style.left = `${mRect.left + 30 + rX}px`; el.style.top = `${mRect.top}px`; }
+            document.body.appendChild(el); setTimeout(() => el.remove(), 600);
         }
 
         function updateHpBar() {
             const pct = Math.max(0, (game.monsterHp / game.maxHp) * 100);
             document.getElementById('monster-hp-bar').style.width = pct + '%';
-            
-            // HP 숫자 표시 업데이트
-            const cur = Math.ceil(Math.max(0, game.monsterHp));
-            const max = Math.ceil(game.maxHp);
-            document.getElementById('hp-text').innerText = `${cur}/${max}`;
+            document.getElementById('hp-text').innerText = `${Math.ceil(Math.max(0, game.monsterHp))}/${Math.ceil(game.maxHp)}`;
         }
         
         function updateMonsterAppearance() {
@@ -566,13 +544,10 @@
             document.getElementById('monster-svg').style.fill = `hsl(${hue}, 70%, 60%)`;
         }
 
-        // --- 5. 머지 & 렌더링 ---
         function initGrid() {
-            const gridEl = document.getElementById('grid');
-            gridEl.innerHTML = '';
+            const gridEl = document.getElementById('grid'); gridEl.innerHTML = '';
             for (let i = 0; i < 16; i++) {
-                let slot = document.createElement('div');
-                slot.className = 'slot'; slot.dataset.index = i;
+                let slot = document.createElement('div'); slot.className = 'slot'; slot.dataset.index = i;
                 gridEl.appendChild(slot);
             }
         }
@@ -581,12 +556,10 @@
             document.getElementById('gold-display').innerText = Math.floor(game.gold).toLocaleString();
             document.getElementById('dps-display').innerText = getTotalDPS().toLocaleString();
             document.getElementById('stage-num').innerText = game.stage;
-            
             const cost = getBuyCost();
             const buyBtn = document.getElementById('buy-btn');
             buyBtn.innerText = `WEAPON (${cost.toLocaleString()} G)`;
             buyBtn.disabled = game.gold < cost;
-
             const slots = document.querySelectorAll('.slot');
             slots.forEach((slot, idx) => {
                 if (slot.querySelector('.dragging')) return;
@@ -594,64 +567,41 @@
                 const level = game.inventory[idx];
                 if (level !== null) {
                     const el = document.createElement('div'); el.className = 'item';
-                    
-                    // 절차적 무기 생성 SVG 삽입
                     el.innerHTML = generateWeaponSVG(level);
-                    
-                    // 레벨 배지
-                    const badge = document.createElement('div');
-                    badge.innerText = `Lv.${level}`;
+                    const badge = document.createElement('div'); badge.innerText = `Lv.${level}`;
                     badge.style.cssText = "position:absolute; bottom:0; right:0; font-size:0.4rem; color:#fff; background:rgba(0,0,0,0.5); padding:1px; border-radius:2px;";
                     el.appendChild(badge);
-
                     addDragEvents(el); slot.appendChild(el);
                 }
             });
             saveData();
         }
 
-        // Drag & Drop
         let dragged = null, startIdx = null, offsets = { x:0, y:0 };
-        function addDragEvents(el) { 
-            el.addEventListener('mousedown', startDrag); 
-            el.addEventListener('touchstart', startDrag, {passive: false}); 
-        }
+        function addDragEvents(el) { el.addEventListener('mousedown', startDrag); el.addEventListener('touchstart', startDrag, {passive: false}); }
         function startDrag(e) {
             if(e.type === 'touchstart') e.preventDefault();
-            dragged = e.target.closest('.item'); // item 클래스 선택 보장
-            if(!dragged) return;
+            dragged = e.target.closest('.item'); if(!dragged) return;
             startIdx = parseInt(dragged.parentElement.dataset.index);
-            const cX = e.touches ? e.touches[0].clientX : e.clientX; 
-            const cY = e.touches ? e.touches[0].clientY : e.clientY;
-            const r = dragged.getBoundingClientRect(); 
-            offsets.x = cX - r.left; offsets.y = cY - r.top;
-            
-            dragged.classList.add('dragging'); 
-            dragged.style.position = 'fixed';
+            const cX = e.touches ? e.touches[0].clientX : e.clientX; const cY = e.touches ? e.touches[0].clientY : e.clientY;
+            const r = dragged.getBoundingClientRect(); offsets.x = cX - r.left; offsets.y = cY - r.top;
+            dragged.classList.add('dragging'); dragged.style.position = 'fixed';
             dragged.style.left = (cX - offsets.x) + 'px'; dragged.style.top = (cY - offsets.y) + 'px';
             dragged.style.width = r.width + 'px'; dragged.style.height = r.height + 'px';
-            
             document.addEventListener('mousemove', moveDrag); document.addEventListener('mouseup', endDrag);
             document.addEventListener('touchmove', moveDrag, {passive:false}); document.addEventListener('touchend', endDrag);
         }
         function moveDrag(e) { 
             if(!dragged) return; if(e.type === 'touchmove') e.preventDefault();
-            const cX = e.touches ? e.touches[0].clientX : e.clientX; 
-            const cY = e.touches ? e.touches[0].clientY : e.clientY; 
+            const cX = e.touches ? e.touches[0].clientX : e.clientX; const cY = e.touches ? e.touches[0].clientY : e.clientY; 
             dragged.style.left = (cX - offsets.x) + 'px'; dragged.style.top = (cY - offsets.y) + 'px'; 
         }
         function endDrag(e) {
             if(!dragged) return; 
-            const cX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX; 
-            const cY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-            
-            dragged.hidden = true; 
-            const elem = document.elementFromPoint(cX, cY); 
-            dragged.hidden = false;
-            
+            const cX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX; const cY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            dragged.hidden = true; const elem = document.elementFromPoint(cX, cY); dragged.hidden = false;
             const slot = elem ? elem.closest('.slot') : null; 
             if(slot) handleMerge(startIdx, parseInt(slot.dataset.index));
-            
             dragged.remove(); dragged = null;
             document.removeEventListener('mousemove', moveDrag); document.removeEventListener('mouseup', endDrag);
             document.removeEventListener('touchmove', moveDrag); document.removeEventListener('touchend', endDrag); 
@@ -661,45 +611,24 @@
         function handleMerge(from, to) {
             if(from === to) return; 
             const i1 = game.inventory[from], i2 = game.inventory[to];
-            if(i2 === null) { 
-                game.inventory[to] = i1; game.inventory[from] = null; 
-            } else if(i1 === i2) { 
-                // 무한 레벨업 가능 (제한 없음)
-                game.inventory[to] = i1 + 1; game.inventory[from] = null; 
-                playSfx('merge');
-            } else { 
-                game.inventory[to] = i1; game.inventory[from] = i2; 
-            }
+            if(i2 === null) { game.inventory[to] = i1; game.inventory[from] = null; } 
+            else if(i1 === i2) { game.inventory[to] = i1 + 1; game.inventory[from] = null; playSfx('merge'); } 
+            else { game.inventory[to] = i1; game.inventory[from] = i2; }
         }
 
         document.getElementById('buy-btn').addEventListener('click', () => {
             const cost = getBuyCost(); const empty = game.inventory.findIndex(x => x === null);
-            if(game.gold >= cost && empty !== -1) { 
-                game.gold -= cost; game.inventory[empty] = 0; game.buyCount++; 
-                playSfx('buy'); render(); 
-            }
+            if(game.gold >= cost && empty !== -1) { game.gold -= cost; game.inventory[empty] = 0; game.buyCount++; playSfx('buy'); render(); }
         });
 
-        // Save & Load
         function saveData() { localStorage.setItem('knightMergeSave', JSON.stringify(game)); }
         function loadData() { 
             const s = localStorage.getItem('knightMergeSave'); 
-            if(s) { 
-                game = JSON.parse(s); 
-                if(!game.bestStage) game.bestStage = game.stage;
-            } else {
-                game.gold = 100;
-            }
+            if(s) { game = JSON.parse(s); if(!game.bestStage) game.bestStage = game.stage; } 
+            else { game.gold = 100; }
             updateMonsterAppearance(); 
         }
-        
-        window.resetData = function() { 
-            if(confirm("초기화하시겠습니까?")) { 
-                localStorage.removeItem('knightMergeSave'); 
-                localStorage.removeItem('pixelNick'); 
-                location.reload(); 
-            } 
-        }
+        window.resetData = function() { if(confirm("초기화하시겠습니까?")) { localStorage.removeItem('knightMergeSave'); localStorage.removeItem('pixelNick'); location.reload(); } }
     </script>
 </body>
 </html>
