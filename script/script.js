@@ -561,13 +561,3 @@ document.addEventListener('touchstart', (e) => {
 document.addEventListener('gesturestart', (e) => {
     e.preventDefault();
 });
-
-// 3. 더블 탭 확대 차단 (혹시 모를 상황 대비)
-let lastTouchEnd = 0;
-document.addEventListener('touchend', (e) => {
-    const now = (new Date()).getTime();
-    if (now - lastTouchEnd <= 300) {
-        e.preventDefault();
-    }
-    lastTouchEnd = now;
-}, { passive: false });
