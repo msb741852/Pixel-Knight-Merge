@@ -120,6 +120,26 @@ function generateWeaponSVG(level) {
 
 function startGame() {
     document.getElementById('my-nick-display').innerText = window.myNickname || 'PLAYER';
+
+    // ★ [업데이트 기념 선물 지급] ★
+    // 'patch_reward_v2'라는 키가 없으면 선물을 주고 기록함
+    // ★ 보상 지급 로직 ★
+    if (!localStorage.getItem('patch_reward_v2')) {
+        const bonusGold = 10000;
+        
+        // 1. 데이터 변경 (내부적으로만 골드 증가)
+        game.gold += bonusGold; 
+        
+        // 2. 보상 받았다는 표시 남기기
+        localStorage.setItem('patch_reward_v2', 'received');
+        
+        // 3. ★중요★ 화면 갱신 및 저장!
+        // 이걸 해야 화면 상단 골드 숫자가 촤르륵 바뀝니다.
+        render(); 
+
+        alert(`🎉 밸런스 패치 기념 보상! 🎉\n\n${bonusGold.toLocaleString()} 골드가 지급되었습니다.\n\n즐거운 모험 되세요!`);
+    }
+
     isGameStarted = true;
     initGrid(); loadData(); render();
     requestAnimationFrame(combatLoop);
@@ -291,10 +311,29 @@ document.getElementById('buy-btn').addEventListener('click', () => {
 });
 
 function saveData() { localStorage.setItem('knightMergeSave', JSON.stringify(game)); }
+// script.js 내부
+
 function loadData() { 
     const s = localStorage.getItem('knightMergeSave'); 
-    if(s) { game = JSON.parse(s); if(!game.bestStage) game.bestStage = game.stage; } 
-    else { game.gold = 100; }
+    if(s) { 
+        game = JSON.parse(s); 
+        if(!game.bestStage) game.bestStage = game.stage;
+
+        // ★ [밸런스 패치 적용 로직] ★
+        // 1. 현재 스테이지에 맞는 '새로운 공식'의 최대 체력을 구한다.
+        const newMaxHp = getMonsterMaxHp(game.stage);
+
+        // 2. 만약 저장된 최대 체력이 새 공식보다 크다면? (구버전 데이터라면)
+        if (game.maxHp > newMaxHp) {
+            game.maxHp = newMaxHp; // 최대 체력 하향 조정
+            // 현재 체력도 비율에 맞춰 줄이거나, 그냥 꽉 채운 상태로 리셋해줌 (유저 배려)
+            if (game.monsterHp > newMaxHp) {
+                game.monsterHp = newMaxHp; 
+            }
+        }
+    } else {
+        game.gold = 100;
+    }
     updateMonsterAppearance(); 
 }
 window.resetData = function() { if(confirm("초기화하시겠습니까?")) { localStorage.removeItem('knightMergeSave'); localStorage.removeItem('pixelNick'); location.reload(); } }
