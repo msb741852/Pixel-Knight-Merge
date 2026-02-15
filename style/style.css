@@ -186,3 +186,25 @@ button {
 button:active { transform: translateY(4px); box-shadow: none; }
 button:disabled { background: #7f8c8d; border-color: #555; box-shadow: none; color: #ccc; cursor: not-allowed; }
 .modal-btn { width: auto; margin-top: 10px; padding: 0 20px; font-size: 0.8rem; height: 40px; }
+
+/* 1. 밝고 화려한 무지개 애니메이션 정의 (이름 변경: rainbow-bright) */
+@keyframes rainbow-bright {
+    0%   { background-color: #ff3333; } /* 밝은 빨강 */
+    25%  { background-color: #ffff33; } /* 밝은 노랑 */
+    50%  { background-color: #33ff33; } /* 밝은 초록 */
+    75%  { background-color: #33ffff; } /* 밝은 하늘 */
+    100% { background-color: #ff33ff; } /* 밝은 핑크 */
+}
+/* 2. 피버 모드일 때 '스테이지 영역(#stage-area)'에 적용될 스타일 */
+/* 기존 배경을 확실히 덮어쓰기 위해 ID 선택자와 !important를 사용합니다. */
+#stage-area.fever-active {
+    /* 0.3초 간격으로 매우 빠르게 번쩍거림 */
+    animation: rainbow-bright 0.3s linear infinite alternate !important;
+    
+    /* 추가 효과: 테두리도 황금빛으로 빛나게 */
+    box-shadow: inset 0 0 30px rgba(255, 255, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.8) !important;
+    border-color: #ffd700 !important;
+    
+    /* 부드러운 전환 효과 */
+    transition: all 0.2s ease-in-out;
+}

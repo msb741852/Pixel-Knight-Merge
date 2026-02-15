@@ -39,29 +39,30 @@ let bgmInterval = null;
 let isMuted = false;
 let autoSaveInterval = null; 
 let isSaving = false; 
+
+// 보급품 타이머
 let supplyTimer = 0;
 const SUPPLY_INTERVAL = 10000; 
+
+// 피버 모드 변수
+let feverGauge = 0;       
+const FEVER_MAX = 100;    
+let isFeverMode = false;  
+const FEVER_DURATION = 5000; // 5초
 
 // DOM 요소
 const loginModal = document.getElementById('login-modal');
 const guideModal = document.getElementById('guide-modal');
 const loginMsg = document.getElementById('login-msg');
 
-// ★ [NEW] 숫자 포맷팅 함수 (K, M, B, T)
+// ★ 숫자 포맷팅 함수 (K, M, B, T)
 function formatNum(num) {
     if (num < 1000) return Math.floor(num);
-    const suffixes = ["", "K", "M", "B", "T", "Qa"];
+    const suffixes = ["", "K", "M", "B", "T", "Qa", "Qi"];
     const suffixNum = Math.floor(("" + Math.floor(num)).length / 3);
-    
-    // 1000 미만은 그냥 리턴 (위에서 처리했지만 안전장치)
     if (suffixNum === 0) return Math.floor(num);
-    
-    // 3자리마다 자르고 소수점 1자리까지 표시 (1.2K)
     let shortValue = parseFloat((suffixNum !== 0 ? (num / Math.pow(1000, suffixNum)) : num).toFixed(1));
-    
-    // 배열 범위를 넘어가면 그냥 숫자로 표시
     if (suffixNum >= suffixes.length) return Math.floor(num).toExponential(1);
-    
     return shortValue + suffixes[suffixNum];
 }
 
@@ -88,10 +89,7 @@ async function loadDataFromCloud(nickname, password) {
 
             console.log("☁️ 로그인 성공!");
             game = { ...game, ...data.gameData }; 
-            
-            // 데이터 호환성
             if (typeof game.minWeaponLevel === 'undefined') game.minWeaponLevel = 0;
-
             return "EXISTING_USER"; 
         } else {
             console.log("✨ 신규 유저 생성");
@@ -118,7 +116,7 @@ async function saveToCloud() {
             password: window.myPassword, 
             gameData: game,
             lastUpdate: serverTimestamp(),
-            version: "2.6" // 버전 업
+            version: "2.7" 
         };
 
         await setDoc(doc(db, COL_PLAYERS, window.myNickname), saveData, { merge: true });
@@ -258,25 +256,70 @@ window.resetData = function() {
 
 
 // --- 4. 사운드 ---
+// 수정된 initAudio: 처음 한 번만 실행되도록 함
 function initAudio() { 
-    if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } 
-    else if (audioCtx.state === 'suspended') { audioCtx.resume(); } 
-    playBgm(); 
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } 
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    } 
+    // 현재 아무 음악도 안 나오고 있을 때만 시작
+    if (!bgmInterval) {
+        playBgm('normal');
+    }
 }
-function playBgm() {
-    if (!audioCtx || isMuted || bgmInterval) return;
-    const tempo = 150; const secondsPerBeat = 60.0 / tempo; const noteTime = secondsPerBeat / 2;
+let currentBgmMode = null; // 현재 재생 중인 모드 저장용 변수 (맨 위에 추가하거나 함수 밖으로 빼세요)
+
+function playBgm(mode = 'normal') {
+    if (!audioCtx || isMuted) return;
+    
+    // ★ 핵심: 이미 같은 모드의 음악이 나오고 있다면 아무것도 하지 않음
+    if (currentBgmMode === mode && bgmInterval) return;
+    
+    // 모드가 바뀌었다면 기존 음악 종료
+    if (bgmInterval) clearInterval(bgmInterval);
+    currentBgmMode = mode; // 현재 모드 업데이트
+
+    const tempo = mode === 'fever' ? 220 : 150;
     const N = { c3:130.81, d3:146.83, e3:164.81, f3:174.61, g3:196.00, a3:220.00, b3:246.94, c4:261.63, d4:293.66, e4:329.63, f4:349.23, g4:392.00, a4:440.00, b4:493.88, _:null };
-    const melody = [N.e4,N._,N.e4,N.f4,N.g4,N._,N.g4,N.a4,N.g4,N.f4,N.e4,N.d4,N.c4,N._,N.c4,N.e4,N.d4,N.d4,N.e4,N._,N.c4,N._,N.g3,N._,N.a3,N.b3,N.c4,N.d4,N.e4,N.c4,N.d4,N.g4];
-    const bass = [N.c3,N.c3,N.e3,N.e3,N.g3,N.g3,N.c4,N.c4,N.f3,N.f3,N.a3,N.a3,N.c4,N.c4,N.a3,N.a3,N.d3,N.d3,N.f3,N.f3,N.a3,N.a3,N.d4,N.d4,N.g3,N.g3,N.b3,N.b3,N.d4,N.d4,N.g3,N.g3];
+    
+    let melody, bass;
+    if (mode === 'fever') {
+        melody = [N.c4,N.e4,N.g4,N.c5, N.c4,N.e4,N.g4,N.c5, N.f4,N.a4,N.c5,N.f5, N.f4,N.a4,N.c5,N.f5];
+        bass = [N.c3,N.c3,N.c3,N.c3, N.c3,N.c3,N.c3,N.c3, N.f3,N.f3,N.f3,N.f3, N.f3,N.f3,N.f3,N.f3];
+    } else {
+        melody = [N.e4,N._,N.e4,N.f4,N.g4,N._,N.g4,N.a4,N.g4,N.f4,N.e4,N.d4,N.c4,N._,N.c4,N.e4,N.d4,N.d4,N.e4,N._,N.c4,N._,N.g3,N._,N.a3,N.b3,N.c4,N.d4,N.e4,N.c4,N.d4,N.g4];
+        bass = [N.c3,N.c3,N.e3,N.e3,N.g3,N.g3,N.c4,N.c4,N.f3,N.f3,N.a3,N.a3,N.c4,N.c4,N.a3,N.a3,N.d3,N.d3,N.f3,N.f3,N.a3,N.a3,N.d4,N.d4,N.g3,N.g3,N.b3,N.b3,N.d4,N.d4,N.g3,N.g3];
+    }
+
+    const noteTime = (60.0 / tempo) / 2;
     let step = 0;
     bgmInterval = setInterval(() => {
         if (!audioCtx || isMuted) return;
         const now = audioCtx.currentTime;
-        const m = melody[step % melody.length]; const b = bass[step % bass.length];
-        if (m) { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='square'; o.frequency.setValueAtTime(m,now); g.gain.setValueAtTime(0.05,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.1); o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2); }
-        if (b) { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='triangle'; o.frequency.setValueAtTime(b,now); g.gain.setValueAtTime(0.08,now); g.gain.linearRampToValueAtTime(0,now+0.2); o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2); }
-        if (step%4===0) { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); if(step%8===0){ o.frequency.setValueAtTime(150,now); o.frequency.exponentialRampToValueAtTime(0.01,now+0.5); g.gain.setValueAtTime(0.2,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.5); } else { o.type='square'; o.frequency.setValueAtTime(1000,now); g.gain.setValueAtTime(0.03,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.1); } o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2); }
+        const m = melody[step % melody.length];
+        const b = bass[step % bass.length];
+
+        if (m) { 
+            const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+            o.type = mode === 'fever' ? 'sawtooth' : 'square';
+            o.frequency.setValueAtTime(m, now);
+            g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.01, now+0.1);
+            o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2);
+        }
+        if (b) { 
+            const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+            o.type='triangle'; o.frequency.setValueAtTime(b, now);
+            g.gain.setValueAtTime(0.08, now); g.gain.linearRampToValueAtTime(0, now+0.2);
+            o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2);
+        }
+        if (step%4===0 || (mode==='fever' && step%2===0)) { 
+            const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+            o.frequency.setValueAtTime(step%8===0?150:1000, now);
+            g.gain.setValueAtTime(0.15, now); g.gain.exponentialRampToValueAtTime(0.01, now+0.2);
+            o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2);
+        }
         step++;
     }, noteTime * 1000);
 }
@@ -320,9 +363,18 @@ function combatLoop(timestamp) {
     if (!lastTime) lastTime = timestamp;
     const delta = timestamp - lastTime;
 
+    // 피버 게이지 감소 로직
+    if (!isFeverMode && feverGauge > 0) {
+        feverGauge -= 0.1; 
+        if (feverGauge < 0) feverGauge = 0;
+        updateFeverUI();
+    }
+
     if (delta >= 1000) { 
         const dps = getTotalDPS();
-        if (dps > 0) attackMonster(dps, null, null, false);
+        // 피버 시 DPS 2배
+        const actualDps = isFeverMode ? dps * 2 : dps;
+        if (actualDps > 0) attackMonster(actualDps, null, null, false);
         
         supplyTimer += delta;
         if (supplyTimer >= SUPPLY_INTERVAL) {
@@ -340,7 +392,6 @@ function spawnSupply() {
         game.inventory[emptyIdx] = game.minWeaponLevel; 
         playSfx('buy'); 
         render();
-        // ★ 포맷팅 적용
         showDamageText(`GIFT! Lv.${game.minWeaponLevel}`, null, null, true, true); 
     }
 }
@@ -355,15 +406,28 @@ stageZone.addEventListener('pointerdown', (e) => {
 });
 
 function attackMonster(damage, x, y, isClick) {
+    // 피버 게이지 충전
+    if (isClick && !isFeverMode) {
+        feverGauge += 2; 
+        if (feverGauge >= FEVER_MAX) {
+            activateFever(); 
+        }
+    }
+    updateFeverUI();
+
+    let finalDmg = damage;
+    if (isFeverMode) finalDmg *= 2; // 피버 데미지 2배
+
+    const isCrit = Math.random() < 0.1;
+    if (isCrit) finalDmg *= 2; 
+
     const hero = document.getElementById('hero-wrapper');
     const monster = document.getElementById('monster-wrapper');
-    const isCrit = Math.random() < 0.1;
-    const finalDmg = isCrit ? damage * 2 : damage;
-
     hero.classList.remove('hero-attack'); void hero.offsetWidth; hero.classList.add('hero-attack');
+    
     game.monsterHp -= finalDmg;
     updateHpBar();
-    showDamageText(finalDmg, x, y, isClick, isCrit);
+    showDamageText(finalDmg, x, y, isClick, isCrit, isFeverMode);
     
     if (isCrit) playSfx('crit'); else if (isClick) playSfx('click'); else playSfx('hit');
 
@@ -378,7 +442,10 @@ function attackMonster(damage, x, y, isClick) {
 }
 
 function killMonster() {
-    game.gold += Math.floor(game.maxHp * 1.0); 
+    let gainGold = Math.floor(game.maxHp * 1.0);
+    if (isFeverMode) gainGold *= 2; // 피버 골드 2배
+
+    game.gold += gainGold; 
     game.stage++;
     game.maxHp = getMonsterMaxHp(game.stage);
     game.monsterHp = game.maxHp;
@@ -386,7 +453,7 @@ function killMonster() {
     updateMonsterAppearance(); updateHpBar(); render();
 }
 
-function showDamageText(dmg, x, y, isClick, isCrit) {
+function showDamageText(dmg, x, y, isClick, isCrit, isFever) {
     const el = document.createElement('div'); 
     if (typeof dmg === 'string') {
         el.className = 'dmg-text dmg-crit';
@@ -394,10 +461,16 @@ function showDamageText(dmg, x, y, isClick, isCrit) {
         el.style.color = '#00ff00'; 
     } else {
         el.className = isCrit ? 'dmg-text dmg-crit' : 'dmg-text';
-        // ★ 포맷팅 적용
         const displayDmg = formatNum(dmg);
-        el.innerHTML = isCrit ? `CRITICAL! ${displayDmg}` : (isClick ? `💥${displayDmg}` : `-${displayDmg}`);
-        if (!isCrit) { el.style.color = isClick ? '#fff176' : '#fff'; el.style.fontSize = isClick ? '1.2rem' : '0.8rem'; }
+        
+        if (isFever && isClick) {
+             el.innerHTML = `🔥${displayDmg}`;
+             el.style.fontSize = '1.5rem'; 
+             el.style.color = '#ff4500';   
+        } else {
+             el.innerHTML = isCrit ? `CRITICAL! ${displayDmg}` : (isClick ? `💥${displayDmg}` : `-${displayDmg}`);
+             if (!isCrit) { el.style.color = isClick ? '#fff176' : '#fff'; el.style.fontSize = isClick ? '1.2rem' : '0.8rem'; }
+        }
     }
     el.style.zIndex = 600;
     if (x !== null && y !== null) { el.style.left = `${x}px`; el.style.top = `${y}px`; } 
@@ -410,7 +483,6 @@ function updateHpBar() {
     const bar = document.getElementById('monster-hp-bar');
     const txt = document.getElementById('hp-text');
     if(bar) bar.style.width = pct + '%';
-    // ★ 포맷팅 적용 (5K/5K)
     if(txt) txt.innerText = `${formatNum(Math.ceil(Math.max(0, game.monsterHp)))}/${formatNum(Math.ceil(game.maxHp))}`;
 }
 
@@ -422,6 +494,55 @@ function updateMonsterAppearance() {
     if(svg) svg.style.fill = `hsl(${hue}, 70%, 60%)`;
 }
 
+// ★ 피버 발동 함수 (수정됨: 스테이지 영역만 화려하게)
+function activateFever() {
+    if (isFeverMode) return;
+    isFeverMode = true; 
+    feverGauge = 100;
+    
+    // 1. 타겟 요소 설정: 영웅과 몬스터가 있는 스테이지 영역
+    const stageArea = document.getElementById('stage-area');
+    
+    // 2. 클래스 추가 (밝은 배경 애니메이션 시작)
+    if (stageArea) stageArea.classList.add('fever-active'); 
+    
+    playBgm('fever'); 
+    playSfx('lucky');
+    updateFeverUI();
+
+    // 5초 뒤 종료 및 원상복구
+    setTimeout(() => {
+        isFeverMode = false; 
+        feverGauge = 0;
+        
+        // 3. 클래스 제거 (원래 배경으로 복귀)
+        if (stageArea) stageArea.classList.remove('fever-active');
+
+        playBgm('normal'); 
+        updateFeverUI();
+    }, FEVER_DURATION);
+}
+
+// ★ UI 갱신 함수 (글자도 같이 바꿈)
+function updateFeverUI() {
+    const bar = document.getElementById('fever-bar');
+    const text = document.getElementById('fever-text');
+    
+    if (isFeverMode) {
+        // 피버 모드일 때
+        bar.style.width = '100%';
+        text.innerText = "🔥 MAX FEVER!! 🔥";
+        text.style.color = "#fff176"; // 노란색으로 강조
+    } else {
+        // 평소 (게이지 차오름)
+        // 소수점 버리고 정수만 표시
+        const percent = Math.floor(feverGauge);
+        bar.style.width = `${feverGauge}%`;
+        text.innerText = `FEVER ${percent}%`;
+        text.style.color = "#fff"; // 흰색 복구
+    }
+}
+
 // --- 7. 인벤토리 및 드래그 ---
 function initGrid() {
     const gridEl = document.getElementById('grid'); gridEl.innerHTML = '';
@@ -431,7 +552,6 @@ function initGrid() {
 }
 
 function render() {
-    // ★ 포맷팅 적용
     document.getElementById('gold-display').innerText = formatNum(game.gold);
     document.getElementById('dps-display').innerText = formatNum(getTotalDPS());
     document.getElementById('stage-num').innerText = game.stage;
@@ -439,14 +559,12 @@ function render() {
     // 구매 버튼
     const cost = getBuyCost();
     const buyBtn = document.getElementById('buy-btn');
-    // ★ 포맷팅 적용
     buyBtn.innerText = `WEAPON Lv.${game.minWeaponLevel}\n(${formatNum(cost)} G)`;
     buyBtn.disabled = game.gold < cost;
 
     // 업그레이드 버튼
     const upBtn = document.getElementById('upgrade-btn');
     const upCost = getUpgradeCost();
-    // ★ 포맷팅 적용
     upBtn.innerText = `START Lv.${game.minWeaponLevel} ➡ ${game.minWeaponLevel+1}\n(${formatNum(upCost)} G)`;
     upBtn.disabled = game.gold < upCost;
 
@@ -511,8 +629,11 @@ function handleMerge(from, to) {
     else { game.inventory[to] = i1; game.inventory[from] = i2; }
 }
 
-document.getElementById('buy-btn').addEventListener('click', () => {
-    const cost = getBuyCost(); const empty = game.inventory.findIndex(x => x === null);
+// ★ 빠른 클릭을 위해 click 대신 pointerdown 사용
+document.getElementById('buy-btn').addEventListener('pointerdown', (e) => {
+    e.preventDefault(); // 터치 확대 등 기본동작 차단
+    const cost = getBuyCost(); 
+    const empty = game.inventory.findIndex(x => x === null);
     if(game.gold >= cost && empty !== -1) { 
         game.gold -= cost; 
         game.inventory[empty] = game.minWeaponLevel; 
@@ -522,12 +643,14 @@ document.getElementById('buy-btn').addEventListener('click', () => {
     }
 });
 
-document.getElementById('upgrade-btn').addEventListener('click', () => {
+document.getElementById('upgrade-btn').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
     const cost = getUpgradeCost();
     if(game.gold >= cost) {
         game.gold -= cost;
         game.minWeaponLevel++; 
         
+        // 폭포수 업그레이드 (재고 처리)
         let upgradeCount = 0;
         for(let i = 0; i < game.inventory.length; i++) {
             if (game.inventory[i] !== null && game.inventory[i] < game.minWeaponLevel) {
@@ -549,15 +672,12 @@ document.getElementById('upgrade-btn').addEventListener('click', () => {
 });
 
 // --- [iOS 사파리 제스처 방어 코드] ---
-
-// 1. 두 손가락 이상 터치 시(줌, 세손가락 메뉴 등) 차단
 document.addEventListener('touchstart', (e) => {
     if (e.touches.length > 1) {
-        e.preventDefault(); 
+        e.preventDefault(); // 두 손가락 이상 터치 차단
     }
 }, { passive: false });
 
-// 2. 핀치 줌(손가락 벌리기) 차단
 document.addEventListener('gesturestart', (e) => {
-    e.preventDefault();
+    e.preventDefault(); // 핀치 줌 차단
 });
