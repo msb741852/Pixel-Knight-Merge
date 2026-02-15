@@ -433,7 +433,7 @@ function render() {
     // 2. ★ 업그레이드 버튼 업데이트 (새로 추가됨)
     const upBtn = document.getElementById('upgrade-btn');
     const upCost = getUpgradeCost();
-    upBtn.innerText = `START Lv.${game.minWeaponLevel} ➡ ${game.minWeaponLevel+1} (${upCost.toLocaleString()} G)`;
+    upBtn.innerText = `START Lv.${game.minWeaponLevel} ➡ ${game.minWeaponLevel+1} \n(${upCost.toLocaleString()} G)`;
     upBtn.disabled = game.gold < upCost;
 
     const slots = document.querySelectorAll('.slot');
