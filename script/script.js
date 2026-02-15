@@ -30,7 +30,7 @@ let game = {
     maxHp: 20, 
     bestStage: 1,
     hasReceivedReward: false,
-    minWeaponLevel: 0 // ★ 무기 생성 기본 레벨 (새로 추가됨)
+    minWeaponLevel: 0
 };
 
 let audioCtx = null;
@@ -39,15 +39,32 @@ let bgmInterval = null;
 let isMuted = false;
 let autoSaveInterval = null; 
 let isSaving = false; 
-
-// 보급품 타이머
 let supplyTimer = 0;
-const SUPPLY_INTERVAL = 10000; // 10초
+const SUPPLY_INTERVAL = 10000; 
 
 // DOM 요소
 const loginModal = document.getElementById('login-modal');
 const guideModal = document.getElementById('guide-modal');
 const loginMsg = document.getElementById('login-msg');
+
+// ★ [NEW] 숫자 포맷팅 함수 (K, M, B, T)
+function formatNum(num) {
+    if (num < 1000) return Math.floor(num);
+    const suffixes = ["", "K", "M", "B", "T", "Qa"];
+    const suffixNum = Math.floor(("" + Math.floor(num)).length / 3);
+    
+    // 1000 미만은 그냥 리턴 (위에서 처리했지만 안전장치)
+    if (suffixNum === 0) return Math.floor(num);
+    
+    // 3자리마다 자르고 소수점 1자리까지 표시 (1.2K)
+    let shortValue = parseFloat((suffixNum !== 0 ? (num / Math.pow(1000, suffixNum)) : num).toFixed(1));
+    
+    // 배열 범위를 넘어가면 그냥 숫자로 표시
+    if (suffixNum >= suffixes.length) return Math.floor(num).toExponential(1);
+    
+    return shortValue + suffixes[suffixNum];
+}
+
 
 // --- 1. 클라우드 저장 시스템 ---
 
@@ -72,10 +89,8 @@ async function loadDataFromCloud(nickname, password) {
             console.log("☁️ 로그인 성공!");
             game = { ...game, ...data.gameData }; 
             
-            // 데이터 호환성 체크 (minWeaponLevel이 없는 구버전 데이터 대비)
-            if (typeof game.minWeaponLevel === 'undefined') {
-                game.minWeaponLevel = 0;
-            }
+            // 데이터 호환성
+            if (typeof game.minWeaponLevel === 'undefined') game.minWeaponLevel = 0;
 
             return "EXISTING_USER"; 
         } else {
@@ -103,7 +118,7 @@ async function saveToCloud() {
             password: window.myPassword, 
             gameData: game,
             lastUpdate: serverTimestamp(),
-            version: "2.5" // 버전 업
+            version: "2.6" // 버전 업
         };
 
         await setDoc(doc(db, COL_PLAYERS, window.myNickname), saveData, { merge: true });
@@ -155,14 +170,12 @@ async function startProcess(nickname, password) {
         await saveToCloud();
     }
 
-    // 밸런스 패치
     const newMaxHp = getMonsterMaxHp(game.stage);
     if (game.maxHp > newMaxHp) {
         game.maxHp = newMaxHp;
         if (game.monsterHp > newMaxHp) game.monsterHp = newMaxHp;
     }
 
-    // 오픈 보상
     if (!game.hasReceivedReward) {
         const bonusGold = 10000;
         game.gold += bonusGold;
@@ -296,12 +309,7 @@ function generateWeaponSVG(level) {
 // --- 6. 게임 코어 ---
 
 function getBuyCost() { return Math.floor(10 * Math.pow(1.06, game.buyCount)); }
-
-// ★ [업그레이드 비용] 1000 * 5^레벨 (1000, 5000, 25000...)
-function getUpgradeCost() { 
-    return Math.floor(1000 * Math.pow(5, game.minWeaponLevel)); 
-}
-
+function getUpgradeCost() { return Math.floor(1000 * Math.pow(5, game.minWeaponLevel)); }
 function getWeaponDamage(level) { return Math.floor(10 * Math.pow(2.1, level)); }
 function getTotalDPS() { return game.inventory.reduce((sum, lvl) => (lvl !== null ? sum + getWeaponDamage(lvl) : sum), 0); }
 function getMonsterMaxHp(stage) { return Math.floor(30 * Math.pow(1.14, stage - 1)); }
@@ -326,13 +334,13 @@ function combatLoop(timestamp) {
     requestAnimationFrame(combatLoop);
 }
 
-// ★ 보급품 투하 (업그레이드 된 레벨 적용!)
 function spawnSupply() {
     const emptyIdx = game.inventory.findIndex(x => x === null);
     if (emptyIdx !== -1) {
-        game.inventory[emptyIdx] = game.minWeaponLevel; // 기본 레벨 적용
+        game.inventory[emptyIdx] = game.minWeaponLevel; 
         playSfx('buy'); 
         render();
+        // ★ 포맷팅 적용
         showDamageText(`GIFT! Lv.${game.minWeaponLevel}`, null, null, true, true); 
     }
 }
@@ -386,7 +394,9 @@ function showDamageText(dmg, x, y, isClick, isCrit) {
         el.style.color = '#00ff00'; 
     } else {
         el.className = isCrit ? 'dmg-text dmg-crit' : 'dmg-text';
-        el.innerHTML = isCrit ? `CRITICAL! ${dmg}` : (isClick ? `💥${dmg}` : `-${dmg}`);
+        // ★ 포맷팅 적용
+        const displayDmg = formatNum(dmg);
+        el.innerHTML = isCrit ? `CRITICAL! ${displayDmg}` : (isClick ? `💥${displayDmg}` : `-${displayDmg}`);
         if (!isCrit) { el.style.color = isClick ? '#fff176' : '#fff'; el.style.fontSize = isClick ? '1.2rem' : '0.8rem'; }
     }
     el.style.zIndex = 600;
@@ -400,7 +410,8 @@ function updateHpBar() {
     const bar = document.getElementById('monster-hp-bar');
     const txt = document.getElementById('hp-text');
     if(bar) bar.style.width = pct + '%';
-    if(txt) txt.innerText = `${Math.ceil(Math.max(0, game.monsterHp))}/${Math.ceil(game.maxHp)}`;
+    // ★ 포맷팅 적용 (5K/5K)
+    if(txt) txt.innerText = `${formatNum(Math.ceil(Math.max(0, game.monsterHp)))}/${formatNum(Math.ceil(game.maxHp))}`;
 }
 
 function updateMonsterAppearance() {
@@ -420,20 +431,23 @@ function initGrid() {
 }
 
 function render() {
-    document.getElementById('gold-display').innerText = Math.floor(game.gold).toLocaleString();
-    document.getElementById('dps-display').innerText = getTotalDPS().toLocaleString();
+    // ★ 포맷팅 적용
+    document.getElementById('gold-display').innerText = formatNum(game.gold);
+    document.getElementById('dps-display').innerText = formatNum(getTotalDPS());
     document.getElementById('stage-num').innerText = game.stage;
     
-    // 1. 구매 버튼 업데이트
+    // 구매 버튼
     const cost = getBuyCost();
     const buyBtn = document.getElementById('buy-btn');
-    buyBtn.innerText = `WEAPON Lv.${game.minWeaponLevel} (${cost.toLocaleString()} G)`;
+    // ★ 포맷팅 적용
+    buyBtn.innerText = `WEAPON Lv.${game.minWeaponLevel} (${formatNum(cost)} G)`;
     buyBtn.disabled = game.gold < cost;
 
-    // 2. ★ 업그레이드 버튼 업데이트 (새로 추가됨)
+    // 업그레이드 버튼
     const upBtn = document.getElementById('upgrade-btn');
     const upCost = getUpgradeCost();
-    upBtn.innerText = `START Lv.${game.minWeaponLevel} ➡ ${game.minWeaponLevel+1} \n(${upCost.toLocaleString()} G)`;
+    // ★ 포맷팅 적용
+    upBtn.innerText = `START Lv.${game.minWeaponLevel} ➡ ${game.minWeaponLevel+1} (${formatNum(upCost)} G)`;
     upBtn.disabled = game.gold < upCost;
 
     const slots = document.querySelectorAll('.slot');
@@ -497,29 +511,23 @@ function handleMerge(from, to) {
     else { game.inventory[to] = i1; game.inventory[from] = i2; }
 }
 
-// ★ 무기 구매 (업그레이드된 레벨 적용)
 document.getElementById('buy-btn').addEventListener('click', () => {
     const cost = getBuyCost(); const empty = game.inventory.findIndex(x => x === null);
     if(game.gold >= cost && empty !== -1) { 
         game.gold -= cost; 
-        game.inventory[empty] = game.minWeaponLevel; // 기본 레벨 적용
+        game.inventory[empty] = game.minWeaponLevel; 
         game.buyCount++; 
         playSfx('buy'); 
         render(); 
     }
 });
 
-// ★ 업그레이드 버튼 이벤트 (새로 추가됨)
-// ★ 업그레이드 버튼 이벤트 (악성 재고 자동 처리 기능 추가)
 document.getElementById('upgrade-btn').addEventListener('click', () => {
     const cost = getUpgradeCost();
     if(game.gold >= cost) {
         game.gold -= cost;
-        game.minWeaponLevel++; // 생성 레벨 1 증가
+        game.minWeaponLevel++; 
         
-        // ★ [NEW] 인벤토리 청소 (낙수 효과)
-        // 현재 인벤토리를 뒤져서, 새로운 기준 레벨보다 낮은 무기는 
-        // 전부 새로운 기준 레벨로 올려버립니다.
         let upgradeCount = 0;
         for(let i = 0; i < game.inventory.length; i++) {
             if (game.inventory[i] !== null && game.inventory[i] < game.minWeaponLevel) {
@@ -528,10 +536,9 @@ document.getElementById('upgrade-btn').addEventListener('click', () => {
             }
         }
 
-        playSfx('merge'); // 업글 사운드
+        playSfx('merge'); 
         
         if (upgradeCount > 0) {
-            // 구형 무기도 같이 업글됐으면 알림
             showDamageText(`UPGRADE! + ${upgradeCount} Items`, null, null, true, true);
         } else {
             showDamageText(`Base Lv UP! -> Lv.${game.minWeaponLevel}`, null, null, true, true);
