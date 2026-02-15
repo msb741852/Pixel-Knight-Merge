@@ -547,3 +547,27 @@ document.getElementById('upgrade-btn').addEventListener('click', () => {
         render();
     }
 });
+
+// --- [iOS 사파리 제스처 방어 코드] ---
+
+// 1. 두 손가락 이상 터치 시(줌, 세손가락 메뉴 등) 차단
+document.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) {
+        e.preventDefault(); 
+    }
+}, { passive: false });
+
+// 2. 핀치 줌(손가락 벌리기) 차단
+document.addEventListener('gesturestart', (e) => {
+    e.preventDefault();
+});
+
+// 3. 더블 탭 확대 차단 (혹시 모를 상황 대비)
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+    }
+    lastTouchEnd = now;
+}, { passive: false });

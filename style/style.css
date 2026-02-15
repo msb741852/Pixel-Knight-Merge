@@ -9,6 +9,17 @@ body {
     margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text);
     font-family: var(--pixel-font); height: 100dvh; display: flex; flex-direction: column;
     overflow: hidden; padding-bottom: env(safe-area-inset-bottom);
+    
+    /* 터치 제스처(확대/축소, 스크롤) 브라우저 개입 차단 */
+    touch-action: none; 
+    
+    /* 텍스트 선택, 꾹 누르기 메뉴 차단 */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    
+    /* 스크롤 튕김(바운스) 효과 제거 */
+    overscroll-behavior: none;
 }
 
 /* --- UI Components --- */
