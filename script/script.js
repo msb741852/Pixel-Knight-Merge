@@ -29,7 +29,8 @@ let game = {
     monsterHp: 20, 
     maxHp: 20, 
     bestStage: 1,
-    hasReceivedReward: false 
+    hasReceivedReward: false,
+    minWeaponLevel: 0 // ★ 무기 생성 기본 레벨 (새로 추가됨)
 };
 
 let audioCtx = null;
@@ -39,14 +40,17 @@ let isMuted = false;
 let autoSaveInterval = null; 
 let isSaving = false; 
 
-// DOM 요소 가져오기
+// 보급품 타이머
+let supplyTimer = 0;
+const SUPPLY_INTERVAL = 10000; // 10초
+
+// DOM 요소
 const loginModal = document.getElementById('login-modal');
 const guideModal = document.getElementById('guide-modal');
 const loginMsg = document.getElementById('login-msg');
 
 // --- 1. 클라우드 저장 시스템 ---
 
-// [로드] 서버에서 데이터 가져오기
 async function loadDataFromCloud(nickname, password) {
     if (!nickname || !password) return false;
 
@@ -57,7 +61,6 @@ async function loadDataFromCloud(nickname, password) {
         if (docSnap.exists()) {
             const data = docSnap.data();
 
-            // 비밀번호 검증
             if (data.password && data.password !== password) {
                 alert("비밀번호가 틀렸습니다!");
                 localStorage.removeItem('pixelNick');
@@ -66,12 +69,17 @@ async function loadDataFromCloud(nickname, password) {
                 return false;
             }
 
-            console.log("☁️ 로그인 성공! 데이터 로드 완료.");
+            console.log("☁️ 로그인 성공!");
             game = { ...game, ...data.gameData }; 
-            return "EXISTING_USER"; 
+            
+            // 데이터 호환성 체크 (minWeaponLevel이 없는 구버전 데이터 대비)
+            if (typeof game.minWeaponLevel === 'undefined') {
+                game.minWeaponLevel = 0;
+            }
 
+            return "EXISTING_USER"; 
         } else {
-            console.log("✨ 새로운 유저입니다. 계정을 생성합니다.");
+            console.log("✨ 신규 유저 생성");
             return "NEW_USER"; 
         }
     } catch (e) {
@@ -81,7 +89,6 @@ async function loadDataFromCloud(nickname, password) {
     }
 }
 
-// [저장] 자동 저장
 async function saveToCloud() {
     if (!window.myNickname || isSaving) return;
     isSaving = true;
@@ -96,17 +103,14 @@ async function saveToCloud() {
             password: window.myPassword, 
             gameData: game,
             lastUpdate: serverTimestamp(),
-            version: "2.3"
+            version: "2.5" // 버전 업
         };
 
-        // 1. 플레이어 데이터 저장
         await setDoc(doc(db, COL_PLAYERS, window.myNickname), saveData, { merge: true });
 
-        // 2. 랭킹 데이터 저장
         if (game.stage > game.bestStage) game.bestStage = game.stage;
         await setDoc(doc(db, COL_RANKS, window.myNickname), { 
-            score: game.bestStage,
-            password: window.myPassword,
+            score: game.bestStage, 
             lastUpdate: new Date().toISOString() 
         }, { merge: true });
 
@@ -121,11 +125,8 @@ async function saveToCloud() {
 }
 
 
-// --- 2. 게임 시작 프로세스 (순서 수정됨) ---
+// --- 2. 게임 시작 프로세스 ---
 
-// ★ 중요: 함수 정의를 먼저 해야 합니다!
-
-// 로그인 버튼 클릭 시 실행될 함수 정의
 window.checkAndStart = async () => {
     const nickInput = document.getElementById('nickname-input').value.trim().toUpperCase();
     const passInput = document.getElementById('password-input').value.trim();
@@ -138,8 +139,6 @@ window.checkAndStart = async () => {
     }
 
     loginMsg.innerText = "CONNECTING...";
-
-    // 전역 변수 설정
     window.myNickname = nickInput;
     window.myPassword = passInput;
     localStorage.setItem('pixelNick', nickInput);
@@ -148,38 +147,31 @@ window.checkAndStart = async () => {
     await startProcess(nickInput, passInput);
 };
 
-// 데이터 처리 및 게임 진입 함수 정의
 async function startProcess(nickname, password) {
     const status = await loadDataFromCloud(nickname, password);
+    if (status === false) return; 
 
-    if (status === false) return; // 로드 실패
-
-    // 신규 유저 처리
     if (status === "NEW_USER") {
         await saveToCloud();
     }
 
-    // 밸런스 패치 적용
+    // 밸런스 패치
     const newMaxHp = getMonsterMaxHp(game.stage);
     if (game.maxHp > newMaxHp) {
         game.maxHp = newMaxHp;
         if (game.monsterHp > newMaxHp) game.monsterHp = newMaxHp;
-        console.log("⚖️ 밸런스 패치 적용됨");
     }
 
-    // 오픈 기념 보상 지급
+    // 오픈 보상
     if (!game.hasReceivedReward) {
         const bonusGold = 10000;
         game.gold += bonusGold;
         game.hasReceivedReward = true;
         await saveToCloud();
-        alert(`🎉 GRAND OPEN! 🎉\n\n오픈 기념 보상 ${bonusGold.toLocaleString()} 골드가 지급되었습니다!`);
     }
 
-    // 화면 전환
     loginModal.style.display = 'none';
 
-    // 신규 유저는 가이드, 기존 유저는 바로 시작
     if (status === "NEW_USER" || (game.stage === 1 && game.inventory.every(s => s === null))) {
         openGuide();
     } else {
@@ -199,19 +191,15 @@ function startGame() {
     autoSaveInterval = setInterval(saveToCloud, 10000);
 }
 
-// 창 닫기 전 강제 저장 시도
 window.addEventListener("beforeunload", () => {
     saveToCloud();
 });
 
-// ★ 자동 로그인 실행 (함수가 다 만들어진 뒤에 호출!)
 if (window.myNickname && window.myPassword) {
     const nickInput = document.getElementById('nickname-input');
     const passInput = document.getElementById('password-input');
     if(nickInput) nickInput.value = window.myNickname;
     if(passInput) passInput.value = window.myPassword;
-    
-    // 이제 함수가 정의되었으므로 안전하게 호출 가능
     window.checkAndStart(); 
 }
 
@@ -228,53 +216,43 @@ window.openRanking = async () => {
     document.getElementById('rank-overlay').style.display = 'flex';
     const listEl = document.getElementById('rank-list'); 
     listEl.innerHTML = "Loading...";
-    
     try {
         const q = query(collection(db, COL_RANKS), orderBy("score", "desc"), limit(10));
         const querySnapshot = await getDocs(q);
-        let html = ""; 
-        let rank = 1;
-        
+        let html = ""; let rank = 1;
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             let color = rank === 1 ? '#ffd700' : (rank === 2 ? '#c0c0c0' : (rank === 3 ? '#cd7f32' : 'white'));
             html += `<div style="display:flex; justify-content:space-between; color:${color}; margin-bottom: 5px; border-bottom:1px solid #333;">
-                        <span>${rank}. ${doc.id}</span>
-                        <span>${data.score} F</span>
-                     </div>`;
+                        <span>${rank}. ${doc.id}</span><span>${data.score} F</span></div>`;
             rank++;
         });
         listEl.innerHTML = html;
-    } catch(e) { 
-        console.error(e); listEl.innerHTML = "랭킹 로딩 실패"; 
-    }
+    } catch(e) { console.error(e); listEl.innerHTML = "랭킹 로딩 실패"; }
 }
 
 window.resetData = function() { 
-    if(confirm("정말로 초기화하시겠습니까?\n(클라우드 데이터도 삭제됩니다)")) { 
+    if(confirm("초기화하시겠습니까?")) { 
         game = { 
             gold: 0, inventory: Array(16).fill(null), buyCount: 0, 
             stage: 1, monsterHp: 20, maxHp: 20, bestStage: 1,
-            hasReceivedReward: false 
+            hasReceivedReward: false,
+            minWeaponLevel: 0
         };
         saveToCloud().then(() => { location.reload(); });
     } 
 }
 
 
-// --- 4. 사운드 시스템 ---
-
+// --- 4. 사운드 ---
 function initAudio() { 
     if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } 
     else if (audioCtx.state === 'suspended') { audioCtx.resume(); } 
     playBgm(); 
 }
-        
 function playBgm() {
     if (!audioCtx || isMuted || bgmInterval) return;
-    const tempo = 150; 
-    const secondsPerBeat = 60.0 / tempo; 
-    const noteTime = secondsPerBeat / 2;
+    const tempo = 150; const secondsPerBeat = 60.0 / tempo; const noteTime = secondsPerBeat / 2;
     const N = { c3:130.81, d3:146.83, e3:164.81, f3:174.61, g3:196.00, a3:220.00, b3:246.94, c4:261.63, d4:293.66, e4:329.63, f4:349.23, g4:392.00, a4:440.00, b4:493.88, _:null };
     const melody = [N.e4,N._,N.e4,N.f4,N.g4,N._,N.g4,N.a4,N.g4,N.f4,N.e4,N.d4,N.c4,N._,N.c4,N.e4,N.d4,N.d4,N.e4,N._,N.c4,N._,N.g3,N._,N.a3,N.b3,N.c4,N.d4,N.e4,N.c4,N.d4,N.g4];
     const bass = [N.c3,N.c3,N.e3,N.e3,N.g3,N.g3,N.c4,N.c4,N.f3,N.f3,N.a3,N.a3,N.c4,N.c4,N.a3,N.a3,N.d3,N.d3,N.f3,N.f3,N.a3,N.a3,N.d4,N.d4,N.g3,N.g3,N.b3,N.b3,N.d4,N.d4,N.g3,N.g3];
@@ -282,15 +260,13 @@ function playBgm() {
     bgmInterval = setInterval(() => {
         if (!audioCtx || isMuted) return;
         const now = audioCtx.currentTime;
-        const m = melody[step % melody.length]; 
-        const b = bass[step % bass.length];
+        const m = melody[step % melody.length]; const b = bass[step % bass.length];
         if (m) { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='square'; o.frequency.setValueAtTime(m,now); g.gain.setValueAtTime(0.05,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.1); o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2); }
         if (b) { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='triangle'; o.frequency.setValueAtTime(b,now); g.gain.setValueAtTime(0.08,now); g.gain.linearRampToValueAtTime(0,now+0.2); o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2); }
         if (step%4===0) { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); if(step%8===0){ o.frequency.setValueAtTime(150,now); o.frequency.exponentialRampToValueAtTime(0.01,now+0.5); g.gain.setValueAtTime(0.2,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.5); } else { o.type='square'; o.frequency.setValueAtTime(1000,now); g.gain.setValueAtTime(0.03,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.1); } o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2); }
         step++;
     }, noteTime * 1000);
 }
-
 function playSfx(type) {
     if (!audioCtx) return;
     const now = audioCtx.currentTime; const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
@@ -299,10 +275,10 @@ function playSfx(type) {
     else if(type==='click'){ o.type='triangle'; o.frequency.setValueAtTime(600,now); o.frequency.linearRampToValueAtTime(100,now+0.05); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.05); o.start(now); o.stop(now+0.05); }
     else if(type==='merge'){ o.type='sine'; o.frequency.setValueAtTime(440,now); o.frequency.linearRampToValueAtTime(880,now+0.2); g.gain.setValueAtTime(0.1,now); g.gain.linearRampToValueAtTime(0,now+0.2); o.start(now); o.stop(now+0.2); }
     else if(type==='buy'){ o.type='square'; o.frequency.setValueAtTime(1200,now); g.gain.setValueAtTime(0.05,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.1); o.start(now); o.stop(now+0.1); }
+    else if(type==='lucky'){ o.type='sine'; o.frequency.setValueAtTime(523,now); o.frequency.setValueAtTime(659,now+0.1); o.frequency.setValueAtTime(784,now+0.2); g.gain.setValueAtTime(0.1,now); g.gain.linearRampToValueAtTime(0,now+0.3); o.start(now); o.stop(now+0.3); }
 }
 
 // --- 5. 무기 생성 ---
-
 function generateWeaponSVG(level) {
     const hue = (level * 37) % 360; 
     const main = `hsl(${hue}, 70%, 50%)`; const light = `hsl(${hue}, 90%, 70%)`; const dark = `hsl(${hue}, 60%, 30%)`;
@@ -319,7 +295,13 @@ function generateWeaponSVG(level) {
 
 // --- 6. 게임 코어 ---
 
-function getBuyCost() { return Math.floor(10 * Math.pow(1.15, game.buyCount)); }
+function getBuyCost() { return Math.floor(10 * Math.pow(1.06, game.buyCount)); }
+
+// ★ [업그레이드 비용] 1000 * 5^레벨 (1000, 5000, 25000...)
+function getUpgradeCost() { 
+    return Math.floor(1000 * Math.pow(5, game.minWeaponLevel)); 
+}
+
 function getWeaponDamage(level) { return Math.floor(10 * Math.pow(2.1, level)); }
 function getTotalDPS() { return game.inventory.reduce((sum, lvl) => (lvl !== null ? sum + getWeaponDamage(lvl) : sum), 0); }
 function getMonsterMaxHp(stage) { return Math.floor(30 * Math.pow(1.14, stage - 1)); }
@@ -328,12 +310,31 @@ let lastTime = 0;
 function combatLoop(timestamp) {
     if (!isGameStarted) return;
     if (!lastTime) lastTime = timestamp;
-    if (timestamp - lastTime >= 1000) { 
+    const delta = timestamp - lastTime;
+
+    if (delta >= 1000) { 
         const dps = getTotalDPS();
         if (dps > 0) attackMonster(dps, null, null, false);
+        
+        supplyTimer += delta;
+        if (supplyTimer >= SUPPLY_INTERVAL) {
+            supplyTimer = 0;
+            spawnSupply(); 
+        }
         lastTime = timestamp;
     }
     requestAnimationFrame(combatLoop);
+}
+
+// ★ 보급품 투하 (업그레이드 된 레벨 적용!)
+function spawnSupply() {
+    const emptyIdx = game.inventory.findIndex(x => x === null);
+    if (emptyIdx !== -1) {
+        game.inventory[emptyIdx] = game.minWeaponLevel; // 기본 레벨 적용
+        playSfx('buy'); 
+        render();
+        showDamageText(`GIFT! Lv.${game.minWeaponLevel}`, null, null, true, true); 
+    }
 }
 
 const stageZone = document.getElementById('stage-area');
@@ -352,7 +353,6 @@ function attackMonster(damage, x, y, isClick) {
     const finalDmg = isCrit ? damage * 2 : damage;
 
     hero.classList.remove('hero-attack'); void hero.offsetWidth; hero.classList.add('hero-attack');
-
     game.monsterHp -= finalDmg;
     updateHpBar();
     showDamageText(finalDmg, x, y, isClick, isCrit);
@@ -366,12 +366,11 @@ function attackMonster(damage, x, y, isClick) {
         eyesNormal.style.display = 'none'; eyesHit.style.display = 'block';
         setTimeout(() => { eyesNormal.style.display = 'block'; eyesHit.style.display = 'none'; }, 200);
     }
-
     if (game.monsterHp <= 0) killMonster();
 }
 
 function killMonster() {
-    game.gold += Math.floor(game.maxHp * 0.4);
+    game.gold += Math.floor(game.maxHp * 1.0); 
     game.stage++;
     game.maxHp = getMonsterMaxHp(game.stage);
     game.monsterHp = game.maxHp;
@@ -380,9 +379,16 @@ function killMonster() {
 }
 
 function showDamageText(dmg, x, y, isClick, isCrit) {
-    const el = document.createElement('div'); el.className = isCrit ? 'dmg-text dmg-crit' : 'dmg-text';
-    el.innerHTML = isCrit ? `CRITICAL! ${dmg}` : (isClick ? `💥${dmg}` : `-${dmg}`);
-    if (!isCrit) { el.style.color = isClick ? '#fff176' : '#fff'; el.style.fontSize = isClick ? '1.2rem' : '0.8rem'; }
+    const el = document.createElement('div'); 
+    if (typeof dmg === 'string') {
+        el.className = 'dmg-text dmg-crit';
+        el.innerText = dmg;
+        el.style.color = '#00ff00'; 
+    } else {
+        el.className = isCrit ? 'dmg-text dmg-crit' : 'dmg-text';
+        el.innerHTML = isCrit ? `CRITICAL! ${dmg}` : (isClick ? `💥${dmg}` : `-${dmg}`);
+        if (!isCrit) { el.style.color = isClick ? '#fff176' : '#fff'; el.style.fontSize = isClick ? '1.2rem' : '0.8rem'; }
+    }
     el.style.zIndex = 600;
     if (x !== null && y !== null) { el.style.left = `${x}px`; el.style.top = `${y}px`; } 
     else { const mRect = document.getElementById('monster-wrapper').getBoundingClientRect(); const rX = (Math.random() - 0.5) * 60; el.style.left = `${mRect.left + 30 + rX}px`; el.style.top = `${mRect.top}px`; }
@@ -406,7 +412,6 @@ function updateMonsterAppearance() {
 }
 
 // --- 7. 인벤토리 및 드래그 ---
-
 function initGrid() {
     const gridEl = document.getElementById('grid'); gridEl.innerHTML = '';
     for (let i = 0; i < 16; i++) {
@@ -418,10 +423,19 @@ function render() {
     document.getElementById('gold-display').innerText = Math.floor(game.gold).toLocaleString();
     document.getElementById('dps-display').innerText = getTotalDPS().toLocaleString();
     document.getElementById('stage-num').innerText = game.stage;
+    
+    // 1. 구매 버튼 업데이트
     const cost = getBuyCost();
     const buyBtn = document.getElementById('buy-btn');
-    buyBtn.innerText = `WEAPON (${cost.toLocaleString()} G)`;
+    buyBtn.innerText = `WEAPON Lv.${game.minWeaponLevel} (${cost.toLocaleString()} G)`;
     buyBtn.disabled = game.gold < cost;
+
+    // 2. ★ 업그레이드 버튼 업데이트 (새로 추가됨)
+    const upBtn = document.getElementById('upgrade-btn');
+    const upCost = getUpgradeCost();
+    upBtn.innerText = `START Lv.${game.minWeaponLevel} ➡ ${game.minWeaponLevel+1} (${upCost.toLocaleString()} G)`;
+    upBtn.disabled = game.gold < upCost;
+
     const slots = document.querySelectorAll('.slot');
     slots.forEach((slot, idx) => {
         if (slot.querySelector('.dragging')) return;
@@ -468,10 +482,41 @@ function handleMerge(from, to) {
     if(from === to) return; 
     const i1 = game.inventory[from], i2 = game.inventory[to];
     if(i2 === null) { game.inventory[to] = i1; game.inventory[from] = null; } 
-    else if(i1 === i2) { game.inventory[to] = i1 + 1; game.inventory[from] = null; playSfx('merge'); } 
+    else if(i1 === i2) { 
+        const isLucky = Math.random() < 0.05; 
+        if (isLucky) {
+            game.inventory[to] = i1 + 2; 
+            playSfx('lucky'); 
+            showDamageText("LUCKY!!", null, null, true, true); 
+        } else {
+            game.inventory[to] = i1 + 1; 
+            playSfx('merge');
+        }
+        game.inventory[from] = null; 
+    } 
     else { game.inventory[to] = i1; game.inventory[from] = i2; }
 }
+
+// ★ 무기 구매 (업그레이드된 레벨 적용)
 document.getElementById('buy-btn').addEventListener('click', () => {
     const cost = getBuyCost(); const empty = game.inventory.findIndex(x => x === null);
-    if(game.gold >= cost && empty !== -1) { game.gold -= cost; game.inventory[empty] = 0; game.buyCount++; playSfx('buy'); render(); }
+    if(game.gold >= cost && empty !== -1) { 
+        game.gold -= cost; 
+        game.inventory[empty] = game.minWeaponLevel; // 기본 레벨 적용
+        game.buyCount++; 
+        playSfx('buy'); 
+        render(); 
+    }
+});
+
+// ★ 업그레이드 버튼 이벤트 (새로 추가됨)
+document.getElementById('upgrade-btn').addEventListener('click', () => {
+    const cost = getUpgradeCost();
+    if(game.gold >= cost) {
+        game.gold -= cost;
+        game.minWeaponLevel++; // 생성 레벨 1 증가
+        playSfx('merge'); // 업글 사운드
+        showDamageText(`UPGRADE! Lv.${game.minWeaponLevel}`, null, null, true, true);
+        render();
+    }
 });
