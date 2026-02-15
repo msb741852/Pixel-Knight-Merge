@@ -510,13 +510,33 @@ document.getElementById('buy-btn').addEventListener('click', () => {
 });
 
 // ★ 업그레이드 버튼 이벤트 (새로 추가됨)
+// ★ 업그레이드 버튼 이벤트 (악성 재고 자동 처리 기능 추가)
 document.getElementById('upgrade-btn').addEventListener('click', () => {
     const cost = getUpgradeCost();
     if(game.gold >= cost) {
         game.gold -= cost;
         game.minWeaponLevel++; // 생성 레벨 1 증가
+        
+        // ★ [NEW] 인벤토리 청소 (낙수 효과)
+        // 현재 인벤토리를 뒤져서, 새로운 기준 레벨보다 낮은 무기는 
+        // 전부 새로운 기준 레벨로 올려버립니다.
+        let upgradeCount = 0;
+        for(let i = 0; i < game.inventory.length; i++) {
+            if (game.inventory[i] !== null && game.inventory[i] < game.minWeaponLevel) {
+                game.inventory[i] = game.minWeaponLevel;
+                upgradeCount++;
+            }
+        }
+
         playSfx('merge'); // 업글 사운드
-        showDamageText(`UPGRADE! Lv.${game.minWeaponLevel}`, null, null, true, true);
+        
+        if (upgradeCount > 0) {
+            // 구형 무기도 같이 업글됐으면 알림
+            showDamageText(`UPGRADE! + ${upgradeCount} Items`, null, null, true, true);
+        } else {
+            showDamageText(`Base Lv UP! -> Lv.${game.minWeaponLevel}`, null, null, true, true);
+        }
+        
         render();
     }
 });
