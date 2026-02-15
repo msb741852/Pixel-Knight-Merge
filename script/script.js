@@ -440,14 +440,14 @@ function render() {
     const cost = getBuyCost();
     const buyBtn = document.getElementById('buy-btn');
     // ★ 포맷팅 적용
-    buyBtn.innerText = `WEAPON Lv.${game.minWeaponLevel} (${formatNum(cost)} G)`;
+    buyBtn.innerText = `WEAPON Lv.${game.minWeaponLevel}\n(${formatNum(cost)} G)`;
     buyBtn.disabled = game.gold < cost;
 
     // 업그레이드 버튼
     const upBtn = document.getElementById('upgrade-btn');
     const upCost = getUpgradeCost();
     // ★ 포맷팅 적용
-    upBtn.innerText = `START Lv.${game.minWeaponLevel} ➡ ${game.minWeaponLevel+1} (${formatNum(upCost)} G)`;
+    upBtn.innerText = `START Lv.${game.minWeaponLevel} ➡ ${game.minWeaponLevel+1}\n(${formatNum(upCost)} G)`;
     upBtn.disabled = game.gold < upCost;
 
     const slots = document.querySelectorAll('.slot');
