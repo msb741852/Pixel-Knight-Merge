@@ -1,74 +1,280 @@
-import { db } from './db.js'; 
-import { doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs } 
-  from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+// db.js에서 설정된 db 객체 가져오기
+import { db } from './db.js';
+import { 
+    doc, 
+    getDoc, 
+    setDoc, 
+    collection, 
+    query, 
+    orderBy, 
+    limit, 
+    getDocs,
+    serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
+// --- 상수 설정 ---
+const COL_PLAYERS = "players_live"; 
+const COL_RANKS = "ranks_live";     
+
+// --- 전역 변수 설정 ---
 window.myNickname = localStorage.getItem('pixelNick') || null;
-let game = { gold: 0, inventory: Array(16).fill(null), buyCount: 0, stage: 1, monsterHp: 20, maxHp: 20, bestStage: 1 };
+window.myPassword = localStorage.getItem('pixelPass') || null;
+
+// 게임 초기 데이터 구조
+let game = { 
+    gold: 0, 
+    inventory: Array(16).fill(null), 
+    buyCount: 0, 
+    stage: 1, 
+    monsterHp: 20, 
+    maxHp: 20, 
+    bestStage: 1,
+    hasReceivedReward: false 
+};
+
 let audioCtx = null;
 let isGameStarted = false;
 let bgmInterval = null;
 let isMuted = false;
+let autoSaveInterval = null; 
+let isSaving = false; 
 
+// DOM 요소 가져오기
 const loginModal = document.getElementById('login-modal');
 const guideModal = document.getElementById('guide-modal');
 const loginMsg = document.getElementById('login-msg');
 
-if (window.myNickname) {
-    loginModal.style.display = 'none';
-    startGame();
+// --- 1. 클라우드 저장 시스템 ---
+
+// [로드] 서버에서 데이터 가져오기
+async function loadDataFromCloud(nickname, password) {
+    if (!nickname || !password) return false;
+
+    try {
+        const docRef = doc(db, COL_PLAYERS, nickname);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+
+            // 비밀번호 검증
+            if (data.password && data.password !== password) {
+                alert("비밀번호가 틀렸습니다!");
+                localStorage.removeItem('pixelNick');
+                localStorage.removeItem('pixelPass');
+                location.reload();
+                return false;
+            }
+
+            console.log("☁️ 로그인 성공! 데이터 로드 완료.");
+            game = { ...game, ...data.gameData }; 
+            return "EXISTING_USER"; 
+
+        } else {
+            console.log("✨ 새로운 유저입니다. 계정을 생성합니다.");
+            return "NEW_USER"; 
+        }
+    } catch (e) {
+        console.error("데이터 로드 실패:", e);
+        alert("서버 연결 실패. 인터넷을 확인해주세요.");
+        return false;
+    }
 }
 
-window.checkAndStart = async () => {
-    const input = document.getElementById('nickname-input').value.trim().toUpperCase();
-    if (input.length < 2) { loginMsg.innerText = "2글자 이상 입력하세요."; return; }
-    const docRef = doc(db, "ranks", input);
+// [저장] 자동 저장
+async function saveToCloud() {
+    if (!window.myNickname || isSaving) return;
+    isSaving = true;
+
+    const nickDisplay = document.getElementById('my-nick-display');
+    if(nickDisplay && nickDisplay.innerText !== "SAVING...") {
+        nickDisplay.innerText = "SAVING...";
+    }
+
     try {
-        loginMsg.innerText = "CHECKING...";
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && input !== window.myNickname) {
-            loginMsg.innerText = "이미 존재하는 닉네임입니다.";
-        } else {
-            localStorage.setItem('pixelNick', input); window.myNickname = input;
-            if (!docSnap.exists()) await setDoc(docRef, { score: 1, lastUpdate: new Date().toISOString() });
-            loginModal.style.display = 'none';
-            openGuide();
-        }
-    } catch (e) { console.error(e); loginMsg.innerText = "서버 연결 오류"; }
+        const saveData = {
+            password: window.myPassword, 
+            gameData: game,
+            lastUpdate: serverTimestamp(),
+            version: "2.3"
+        };
+
+        // 1. 플레이어 데이터 저장
+        await setDoc(doc(db, COL_PLAYERS, window.myNickname), saveData, { merge: true });
+
+        // 2. 랭킹 데이터 저장
+        if (game.stage > game.bestStage) game.bestStage = game.stage;
+        await setDoc(doc(db, COL_RANKS, window.myNickname), { 
+            score: game.bestStage,
+            password: window.myPassword,
+            lastUpdate: new Date().toISOString() 
+        }, { merge: true });
+
+        console.log("💾 자동 저장 완료");
+
+    } catch (e) {
+        console.error("저장 실패:", e);
+    } finally {
+        isSaving = false;
+        if(nickDisplay) nickDisplay.innerText = window.myNickname;
+    }
+}
+
+
+// --- 2. 게임 시작 프로세스 (순서 수정됨) ---
+
+// ★ 중요: 함수 정의를 먼저 해야 합니다!
+
+// 로그인 버튼 클릭 시 실행될 함수 정의
+window.checkAndStart = async () => {
+    const nickInput = document.getElementById('nickname-input').value.trim().toUpperCase();
+    const passInput = document.getElementById('password-input').value.trim();
+
+    if (nickInput.length < 2) { 
+        loginMsg.innerText = "닉네임은 2글자 이상이어야 합니다."; return; 
+    }
+    if (passInput.length < 4) { 
+        loginMsg.innerText = "비밀번호는 4글자 이상이어야 합니다."; return; 
+    }
+
+    loginMsg.innerText = "CONNECTING...";
+
+    // 전역 변수 설정
+    window.myNickname = nickInput;
+    window.myPassword = passInput;
+    localStorage.setItem('pixelNick', nickInput);
+    localStorage.setItem('pixelPass', passInput);
+
+    await startProcess(nickInput, passInput);
 };
 
-window.openGuide = function() { guideModal.style.display = 'flex'; }
-window.closeGuide = function() { guideModal.style.display = 'none'; if (!isGameStarted) startGame(); }
+// 데이터 처리 및 게임 진입 함수 정의
+async function startProcess(nickname, password) {
+    const status = await loadDataFromCloud(nickname, password);
 
-async function autoSaveScore() {
-    if (!window.myNickname) return;
-    if (game.stage > game.bestStage) {
-        game.bestStage = game.stage;
-        try { await setDoc(doc(db, "ranks", window.myNickname), { score: game.stage, lastUpdate: new Date().toISOString() }, { merge: true }); } catch(e) {}
+    if (status === false) return; // 로드 실패
+
+    // 신규 유저 처리
+    if (status === "NEW_USER") {
+        await saveToCloud();
     }
+
+    // 밸런스 패치 적용
+    const newMaxHp = getMonsterMaxHp(game.stage);
+    if (game.maxHp > newMaxHp) {
+        game.maxHp = newMaxHp;
+        if (game.monsterHp > newMaxHp) game.monsterHp = newMaxHp;
+        console.log("⚖️ 밸런스 패치 적용됨");
+    }
+
+    // 오픈 기념 보상 지급
+    if (!game.hasReceivedReward) {
+        const bonusGold = 10000;
+        game.gold += bonusGold;
+        game.hasReceivedReward = true;
+        await saveToCloud();
+        alert(`🎉 GRAND OPEN! 🎉\n\n오픈 기념 보상 ${bonusGold.toLocaleString()} 골드가 지급되었습니다!`);
+    }
+
+    // 화면 전환
+    loginModal.style.display = 'none';
+
+    // 신규 유저는 가이드, 기존 유저는 바로 시작
+    if (status === "NEW_USER" || (game.stage === 1 && game.inventory.every(s => s === null))) {
+        openGuide();
+    } else {
+        startGame();
+    }
+}
+
+function startGame() {
+    document.getElementById('my-nick-display').innerText = window.myNickname || 'PLAYER';
+    isGameStarted = true;
+    
+    initGrid();
+    render();
+    requestAnimationFrame(combatLoop);
+    
+    if (autoSaveInterval) clearInterval(autoSaveInterval);
+    autoSaveInterval = setInterval(saveToCloud, 10000);
+}
+
+// 창 닫기 전 강제 저장 시도
+window.addEventListener("beforeunload", () => {
+    saveToCloud();
+});
+
+// ★ 자동 로그인 실행 (함수가 다 만들어진 뒤에 호출!)
+if (window.myNickname && window.myPassword) {
+    const nickInput = document.getElementById('nickname-input');
+    const passInput = document.getElementById('password-input');
+    if(nickInput) nickInput.value = window.myNickname;
+    if(passInput) passInput.value = window.myPassword;
+    
+    // 이제 함수가 정의되었으므로 안전하게 호출 가능
+    window.checkAndStart(); 
+}
+
+
+// --- 3. UI 및 랭킹 ---
+
+window.openGuide = function() { guideModal.style.display = 'flex'; }
+window.closeGuide = function() { 
+    guideModal.style.display = 'none'; 
+    if (!isGameStarted) startGame(); 
 }
 
 window.openRanking = async () => {
     document.getElementById('rank-overlay').style.display = 'flex';
-    const listEl = document.getElementById('rank-list'); listEl.innerHTML = "Loading...";
+    const listEl = document.getElementById('rank-list'); 
+    listEl.innerHTML = "Loading...";
+    
     try {
-        const q = query(collection(db, "ranks"), orderBy("score", "desc"), limit(10));
+        const q = query(collection(db, COL_RANKS), orderBy("score", "desc"), limit(10));
         const querySnapshot = await getDocs(q);
-        let html = ""; let rank = 1;
+        let html = ""; 
+        let rank = 1;
+        
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             let color = rank === 1 ? '#ffd700' : (rank === 2 ? '#c0c0c0' : (rank === 3 ? '#cd7f32' : 'white'));
-            html += `<div style="display:flex; justify-content:space-between; color:${color}; margin-bottom: 5px; border-bottom:1px solid #333;"><span>${rank}. ${doc.id}</span><span>${data.score} F</span></div>`;
+            html += `<div style="display:flex; justify-content:space-between; color:${color}; margin-bottom: 5px; border-bottom:1px solid #333;">
+                        <span>${rank}. ${doc.id}</span>
+                        <span>${data.score} F</span>
+                     </div>`;
             rank++;
         });
         listEl.innerHTML = html;
-    } catch(e) { listEl.innerHTML = "Error"; }
+    } catch(e) { 
+        console.error(e); listEl.innerHTML = "랭킹 로딩 실패"; 
+    }
 }
 
-function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } else if (audioCtx.state === 'suspended') { audioCtx.resume(); } playBgm(); }
+window.resetData = function() { 
+    if(confirm("정말로 초기화하시겠습니까?\n(클라우드 데이터도 삭제됩니다)")) { 
+        game = { 
+            gold: 0, inventory: Array(16).fill(null), buyCount: 0, 
+            stage: 1, monsterHp: 20, maxHp: 20, bestStage: 1,
+            hasReceivedReward: false 
+        };
+        saveToCloud().then(() => { location.reload(); });
+    } 
+}
 
+
+// --- 4. 사운드 시스템 ---
+
+function initAudio() { 
+    if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } 
+    else if (audioCtx.state === 'suspended') { audioCtx.resume(); } 
+    playBgm(); 
+}
+        
 function playBgm() {
     if (!audioCtx || isMuted || bgmInterval) return;
-    const tempo = 150; const secondsPerBeat = 60.0 / tempo; const noteTime = secondsPerBeat / 2;
+    const tempo = 150; 
+    const secondsPerBeat = 60.0 / tempo; 
+    const noteTime = secondsPerBeat / 2;
     const N = { c3:130.81, d3:146.83, e3:164.81, f3:174.61, g3:196.00, a3:220.00, b3:246.94, c4:261.63, d4:293.66, e4:329.63, f4:349.23, g4:392.00, a4:440.00, b4:493.88, _:null };
     const melody = [N.e4,N._,N.e4,N.f4,N.g4,N._,N.g4,N.a4,N.g4,N.f4,N.e4,N.d4,N.c4,N._,N.c4,N.e4,N.d4,N.d4,N.e4,N._,N.c4,N._,N.g3,N._,N.a3,N.b3,N.c4,N.d4,N.e4,N.c4,N.d4,N.g4];
     const bass = [N.c3,N.c3,N.e3,N.e3,N.g3,N.g3,N.c4,N.c4,N.f3,N.f3,N.a3,N.a3,N.c4,N.c4,N.a3,N.a3,N.d3,N.d3,N.f3,N.f3,N.a3,N.a3,N.d4,N.d4,N.g3,N.g3,N.b3,N.b3,N.d4,N.d4,N.g3,N.g3];
@@ -76,7 +282,8 @@ function playBgm() {
     bgmInterval = setInterval(() => {
         if (!audioCtx || isMuted) return;
         const now = audioCtx.currentTime;
-        const m = melody[step % melody.length]; const b = bass[step % bass.length];
+        const m = melody[step % melody.length]; 
+        const b = bass[step % bass.length];
         if (m) { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='square'; o.frequency.setValueAtTime(m,now); g.gain.setValueAtTime(0.05,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.1); o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2); }
         if (b) { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='triangle'; o.frequency.setValueAtTime(b,now); g.gain.setValueAtTime(0.08,now); g.gain.linearRampToValueAtTime(0,now+0.2); o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2); }
         if (step%4===0) { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); if(step%8===0){ o.frequency.setValueAtTime(150,now); o.frequency.exponentialRampToValueAtTime(0.01,now+0.5); g.gain.setValueAtTime(0.2,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.5); } else { o.type='square'; o.frequency.setValueAtTime(1000,now); g.gain.setValueAtTime(0.03,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.1); } o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.2); }
@@ -94,56 +301,23 @@ function playSfx(type) {
     else if(type==='buy'){ o.type='square'; o.frequency.setValueAtTime(1200,now); g.gain.setValueAtTime(0.05,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.1); o.start(now); o.stop(now+0.1); }
 }
 
+// --- 5. 무기 생성 ---
+
 function generateWeaponSVG(level) {
     const hue = (level * 37) % 360; 
     const main = `hsl(${hue}, 70%, 50%)`; const light = `hsl(${hue}, 90%, 70%)`; const dark = `hsl(${hue}, 60%, 30%)`;
-    const type = Math.floor(level / 5) % 5; // 5종류 무기
-    const evo = level % 5;
+    const type = Math.floor(level / 5) % 5; const evo = level % 5;
     let path = "";
-
-    if (type === 0) { // [검]
-        const len = 3 + evo; 
-        path = `<rect x="5" y="${8 - len}" width="2" height="${len}" fill="${main}"/> <rect x="5" y="${8 - len}" width="1" height="${len}" fill="${light}"/> <rect x="3" y="8" width="6" height="1" fill="${dark}"/> <rect x="5" y="9" width="2" height="2" fill="#8d6e63"/>`;
-    } else if (type === 1) { // [활]
-        path = `<path d="M2 2 Q 8 6 2 10" stroke="#8d6e63" stroke-width="1" fill="none"/> <line x1="2" y1="2" x2="2" y2="10" stroke="#eee" stroke-width="0.5"/> <rect x="2" y="5" width="8" height="1" fill="${main}"/> <rect x="8" y="5" width="2" height="1" fill="${light}"/>`;
-    } else if (type === 2) { // [지팡이]
-        path = `<rect x="5" y="2" width="2" height="9" fill="#8d6e63"/> <rect x="4" y="1" width="4" height="3" fill="${main}"/> <rect x="5" y="2" width="2" height="1" fill="${light}"/> <rect x="${3 - (evo%2)}" y="2" width="1" height="1" fill="#fff" opacity="0.8"/>`;
-    } else if (type === 3) { // [도끼]
-        path = `<rect x="5" y="2" width="2" height="9" fill="#5d4037"/> <rect x="2" y="2" width="3" height="${2 + evo}" fill="${main}"/> <rect x="7" y="2" width="3" height="${2 + evo}" fill="${main}"/> <rect x="2" y="2" width="1" height="${2 + evo}" fill="${light}"/>`;
-    } else { // [단검]
-        path = `<rect x="5" y="6" width="2" height="3" fill="#8d6e63"/> <rect x="4" y="5" width="4" height="1" fill="${dark}"/> <rect x="5" y="2" width="2" height="3" fill="${main}"/> <rect x="6" y="2" width="1" height="3" fill="${light}"/>`;
-    }
-
+    if (type === 0) { path = `<rect x="5" y="${8 - (3+evo)}" width="2" height="${3+evo}" fill="${main}"/> <rect x="5" y="${8 - (3+evo)}" width="1" height="${3+evo}" fill="${light}"/> <rect x="3" y="8" width="6" height="1" fill="${dark}"/> <rect x="5" y="9" width="2" height="2" fill="#8d6e63"/>`; }
+    else if (type === 1) { path = `<path d="M2 2 Q 8 6 2 10" stroke="#8d6e63" stroke-width="1" fill="none"/> <line x1="2" y1="2" x2="2" y2="10" stroke="#eee" stroke-width="0.5"/> <rect x="2" y="5" width="8" height="1" fill="${main}"/> <rect x="8" y="5" width="2" height="1" fill="${light}"/>`; }
+    else if (type === 2) { path = `<rect x="5" y="2" width="2" height="9" fill="#8d6e63"/> <rect x="4" y="1" width="4" height="3" fill="${main}"/> <rect x="5" y="2" width="2" height="1" fill="${light}"/> <rect x="${3 - (evo%2)}" y="2" width="1" height="1" fill="#fff" opacity="0.8"/>`; }
+    else if (type === 3) { path = `<rect x="5" y="2" width="2" height="9" fill="#5d4037"/> <rect x="2" y="2" width="3" height="${2 + evo}" fill="${main}"/> <rect x="7" y="2" width="3" height="${2 + evo}" fill="${main}"/> <rect x="2" y="2" width="1" height="${2 + evo}" fill="${light}"/>`; }
+    else { path = `<rect x="5" y="6" width="2" height="3" fill="#8d6e63"/> <rect x="4" y="5" width="4" height="1" fill="${dark}"/> <rect x="5" y="2" width="2" height="3" fill="${main}"/> <rect x="6" y="2" width="1" height="3" fill="${light}"/>`; }
     let aura = (level > 0 && level % 10 === 0) ? `<rect x="0" y="0" width="12" height="12" fill="${main}" opacity="0.2"><animate attributeName="opacity" values="0.2;0.5;0.2" duration="0.5s" repeatCount="indefinite"/></rect>` : "";
     return `<svg viewBox="0 0 12 12" shape-rendering="crispEdges" style="width:100%; height:100%; pointer-events:none;">${aura} ${path}</svg>`;
 }
 
-function startGame() {
-    document.getElementById('my-nick-display').innerText = window.myNickname || 'PLAYER';
-
-    // ★ [업데이트 기념 선물 지급] ★
-    // 'patch_reward_v2'라는 키가 없으면 선물을 주고 기록함
-    // ★ 보상 지급 로직 ★
-    if (!localStorage.getItem('patch_reward_v2')) {
-        const bonusGold = 10000;
-        
-        // 1. 데이터 변경 (내부적으로만 골드 증가)
-        game.gold += bonusGold; 
-        
-        // 2. 보상 받았다는 표시 남기기
-        localStorage.setItem('patch_reward_v2', 'received');
-        
-        // 3. ★중요★ 화면 갱신 및 저장!
-        // 이걸 해야 화면 상단 골드 숫자가 촤르륵 바뀝니다.
-        render(); 
-
-        alert(`🎉 밸런스 패치 기념 보상! 🎉\n\n${bonusGold.toLocaleString()} 골드가 지급되었습니다.\n\n즐거운 모험 되세요!`);
-    }
-
-    isGameStarted = true;
-    initGrid(); loadData(); render();
-    requestAnimationFrame(combatLoop);
-}
+// --- 6. 게임 코어 ---
 
 function getBuyCost() { return Math.floor(10 * Math.pow(1.15, game.buyCount)); }
 function getWeaponDamage(level) { return Math.floor(10 * Math.pow(2.1, level)); }
@@ -183,18 +357,15 @@ function attackMonster(damage, x, y, isClick) {
     updateHpBar();
     showDamageText(finalDmg, x, y, isClick, isCrit);
     
-    if (isCrit) playSfx('crit');
-    else if (isClick) playSfx('click'); 
-    else playSfx('hit');
+    if (isCrit) playSfx('crit'); else if (isClick) playSfx('click'); else playSfx('hit');
 
-    // 몬스터 피격 모션 (넉백 + 표정)
     monster.classList.remove('monster-hit'); void monster.offsetWidth; monster.classList.add('monster-hit');
-    document.getElementById('eyes-normal').style.display = 'none';
-    document.getElementById('eyes-hit').style.display = 'block';
-    setTimeout(() => {
-        document.getElementById('eyes-normal').style.display = 'block';
-        document.getElementById('eyes-hit').style.display = 'none';
-    }, 200);
+    const eyesNormal = document.getElementById('eyes-normal');
+    const eyesHit = document.getElementById('eyes-hit');
+    if(eyesNormal && eyesHit) {
+        eyesNormal.style.display = 'none'; eyesHit.style.display = 'block';
+        setTimeout(() => { eyesNormal.style.display = 'block'; eyesHit.style.display = 'none'; }, 200);
+    }
 
     if (game.monsterHp <= 0) killMonster();
 }
@@ -204,17 +375,15 @@ function killMonster() {
     game.stage++;
     game.maxHp = getMonsterMaxHp(game.stage);
     game.monsterHp = game.maxHp;
-    autoSaveScore(); updateMonsterAppearance(); updateHpBar(); render();
+    saveToCloud(); 
+    updateMonsterAppearance(); updateHpBar(); render();
 }
 
 function showDamageText(dmg, x, y, isClick, isCrit) {
-    const el = document.createElement('div'); 
-    el.className = isCrit ? 'dmg-text dmg-crit' : 'dmg-text';
+    const el = document.createElement('div'); el.className = isCrit ? 'dmg-text dmg-crit' : 'dmg-text';
     el.innerHTML = isCrit ? `CRITICAL! ${dmg}` : (isClick ? `💥${dmg}` : `-${dmg}`);
-    
     if (!isCrit) { el.style.color = isClick ? '#fff176' : '#fff'; el.style.fontSize = isClick ? '1.2rem' : '0.8rem'; }
     el.style.zIndex = 600;
-
     if (x !== null && y !== null) { el.style.left = `${x}px`; el.style.top = `${y}px`; } 
     else { const mRect = document.getElementById('monster-wrapper').getBoundingClientRect(); const rX = (Math.random() - 0.5) * 60; el.style.left = `${mRect.left + 30 + rX}px`; el.style.top = `${mRect.top}px`; }
     document.body.appendChild(el); setTimeout(() => el.remove(), 600);
@@ -222,22 +391,26 @@ function showDamageText(dmg, x, y, isClick, isCrit) {
 
 function updateHpBar() {
     const pct = Math.max(0, (game.monsterHp / game.maxHp) * 100);
-    document.getElementById('monster-hp-bar').style.width = pct + '%';
-    document.getElementById('hp-text').innerText = `${Math.ceil(Math.max(0, game.monsterHp))}/${Math.ceil(game.maxHp)}`;
+    const bar = document.getElementById('monster-hp-bar');
+    const txt = document.getElementById('hp-text');
+    if(bar) bar.style.width = pct + '%';
+    if(txt) txt.innerText = `${Math.ceil(Math.max(0, game.monsterHp))}/${Math.ceil(game.maxHp)}`;
 }
 
 function updateMonsterAppearance() {
     const hue = (game.stage * 35) % 360; 
     const monster = document.getElementById('monster-wrapper');
-    monster.style.color = `hsl(${hue}, 70%, 60%)`;
-    document.getElementById('monster-svg').style.fill = `hsl(${hue}, 70%, 60%)`;
+    const svg = document.getElementById('monster-svg');
+    if(monster) monster.style.color = `hsl(${hue}, 70%, 60%)`;
+    if(svg) svg.style.fill = `hsl(${hue}, 70%, 60%)`;
 }
+
+// --- 7. 인벤토리 및 드래그 ---
 
 function initGrid() {
     const gridEl = document.getElementById('grid'); gridEl.innerHTML = '';
     for (let i = 0; i < 16; i++) {
-        let slot = document.createElement('div'); slot.className = 'slot'; slot.dataset.index = i;
-        gridEl.appendChild(slot);
+        let slot = document.createElement('div'); slot.className = 'slot'; slot.dataset.index = i; gridEl.appendChild(slot);
     }
 }
 
@@ -263,7 +436,6 @@ function render() {
             addDragEvents(el); slot.appendChild(el);
         }
     });
-    saveData();
 }
 
 let dragged = null, startIdx = null, offsets = { x:0, y:0 };
@@ -280,11 +452,7 @@ function startDrag(e) {
     document.addEventListener('mousemove', moveDrag); document.addEventListener('mouseup', endDrag);
     document.addEventListener('touchmove', moveDrag, {passive:false}); document.addEventListener('touchend', endDrag);
 }
-function moveDrag(e) { 
-    if(!dragged) return; if(e.type === 'touchmove') e.preventDefault();
-    const cX = e.touches ? e.touches[0].clientX : e.clientX; const cY = e.touches ? e.touches[0].clientY : e.clientY; 
-    dragged.style.left = (cX - offsets.x) + 'px'; dragged.style.top = (cY - offsets.y) + 'px'; 
-}
+function moveDrag(e) { if(!dragged) return; if(e.type === 'touchmove') e.preventDefault(); const cX = e.touches ? e.touches[0].clientX : e.clientX; const cY = e.touches ? e.touches[0].clientY : e.clientY; dragged.style.left = (cX - offsets.x) + 'px'; dragged.style.top = (cY - offsets.y) + 'px'; }
 function endDrag(e) {
     if(!dragged) return; 
     const cX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX; const cY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
@@ -296,7 +464,6 @@ function endDrag(e) {
     document.removeEventListener('touchmove', moveDrag); document.removeEventListener('touchend', endDrag); 
     render();
 }
-
 function handleMerge(from, to) {
     if(from === to) return; 
     const i1 = game.inventory[from], i2 = game.inventory[to];
@@ -304,36 +471,7 @@ function handleMerge(from, to) {
     else if(i1 === i2) { game.inventory[to] = i1 + 1; game.inventory[from] = null; playSfx('merge'); } 
     else { game.inventory[to] = i1; game.inventory[from] = i2; }
 }
-
 document.getElementById('buy-btn').addEventListener('click', () => {
     const cost = getBuyCost(); const empty = game.inventory.findIndex(x => x === null);
     if(game.gold >= cost && empty !== -1) { game.gold -= cost; game.inventory[empty] = 0; game.buyCount++; playSfx('buy'); render(); }
 });
-
-function saveData() { localStorage.setItem('knightMergeSave', JSON.stringify(game)); }
-// script.js 내부
-
-function loadData() { 
-    const s = localStorage.getItem('knightMergeSave'); 
-    if(s) { 
-        game = JSON.parse(s); 
-        if(!game.bestStage) game.bestStage = game.stage;
-
-        // ★ [밸런스 패치 적용 로직] ★
-        // 1. 현재 스테이지에 맞는 '새로운 공식'의 최대 체력을 구한다.
-        const newMaxHp = getMonsterMaxHp(game.stage);
-
-        // 2. 만약 저장된 최대 체력이 새 공식보다 크다면? (구버전 데이터라면)
-        if (game.maxHp > newMaxHp) {
-            game.maxHp = newMaxHp; // 최대 체력 하향 조정
-            // 현재 체력도 비율에 맞춰 줄이거나, 그냥 꽉 채운 상태로 리셋해줌 (유저 배려)
-            if (game.monsterHp > newMaxHp) {
-                game.monsterHp = newMaxHp; 
-            }
-        }
-    } else {
-        game.gold = 100;
-    }
-    updateMonsterAppearance(); 
-}
-window.resetData = function() { if(confirm("초기화하시겠습니까?")) { localStorage.removeItem('knightMergeSave'); localStorage.removeItem('pixelNick'); location.reload(); } }
