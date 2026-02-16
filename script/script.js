@@ -121,13 +121,17 @@ async function saveToCloud() {
 
         await setDoc(doc(db, COL_PLAYERS, window.myNickname), saveData, { merge: true });
 
-        if (game.stage > game.bestStage) game.bestStage = game.stage;
-        await setDoc(doc(db, COL_RANKS, window.myNickname), { 
-            score: game.bestStage, 
-            lastUpdate: new Date().toISOString() 
-        }, { merge: true });
-
-        console.log("💾 자동 저장 완료");
+        // ⚡ 최적화: bestStage가 실제로 갱신될 때만 랭킹 업데이트
+        if (game.stage > game.bestStage) {
+            game.bestStage = game.stage;
+            await setDoc(doc(db, COL_RANKS, window.myNickname), { 
+                score: game.bestStage, 
+                lastUpdate: new Date().toISOString() 
+            }, { merge: true });
+            console.log("💾 저장 완료 + 🏆 랭킹 갱신");
+        } else {
+            console.log("💾 저장 완료");
+        }
 
     } catch (e) {
         console.error("저장 실패:", e);
@@ -199,7 +203,7 @@ function startGame() {
     requestAnimationFrame(combatLoop);
     
     if (autoSaveInterval) clearInterval(autoSaveInterval);
-    autoSaveInterval = setInterval(saveToCloud, 10000);
+    autoSaveInterval = setInterval(saveToCloud, 30000); // 30초마다 자동 저장
 }
 
 window.addEventListener("beforeunload", () => {
