@@ -700,3 +700,20 @@ function showGhostEffect() {
         ghost.remove();
     }, 1200);
 }
+
+// --- [인벤토리 토글 기능] ---
+const toggleBtn = document.getElementById('toggle-inven-btn');
+const invenWrapper = document.getElementById('inven-wrapper');
+
+if (toggleBtn && invenWrapper) {
+    toggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // 1. 포장지(wrapper) 접기/펴기 (CSS가 알아서 애니메이션 처리)
+        invenWrapper.classList.toggle('collapsed');
+
+        // 2. 버튼 회전시키기 (텍스트 변경 X, 회전 O)
+        toggleBtn.classList.toggle('rotate');
+    });
+}
