@@ -830,6 +830,9 @@ if (thunderBtn) {
             setTimeout(() => stageArea.classList.remove('shake-screen'), 500);
         }
 
+        // ⚡ 번개 효과
+        triggerLightningStrike();
+
         startCooldown(newBtn, SKILL_COOLDOWN);
     });
 }
@@ -864,3 +867,63 @@ document.addEventListener('touchend', e => {
     if (now - lastTouchEnd <= 300) e.preventDefault();
     lastTouchEnd = now;
 }, { passive: false });
+
+// ⚡ 번개 효과 함수
+function triggerLightningStrike() {
+    const lightningContainer = document.getElementById('lightning-effect');
+    if (!lightningContainer) return;
+    
+    // 번개 SVG 생성
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 400');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.position = 'absolute';
+    svg.style.top = '0';
+    svg.style.left = '0';
+    
+    // 번개 지그재그 경로 (지그재그로 내려옴)
+    const lightningPaths = [
+        'M50 0 L40 80 L60 100 L35 180 L55 220 L40 300 L50 400',
+        'M50 0 L45 90 L65 110 L30 190 L60 230 L45 310 L50 400',
+        'M50 0 L35 70 L65 120 L40 200 L58 250 L38 320 L50 400'
+    ];
+    
+    // 랜덤으로 한 가지 경로 선택
+    const randomPath = lightningPaths[Math.floor(Math.random() * lightningPaths.length)];
+    
+    const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path1.setAttribute('d', randomPath);
+    path1.setAttribute('stroke', '#ffff00');
+    path1.setAttribute('stroke-width', '8');
+    path1.setAttribute('fill', 'none');
+    path1.setAttribute('stroke-linecap', 'round');
+    path1.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(path1);
+    
+    // 바깥 광선 (밝은 노란색)
+    const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path2.setAttribute('d', randomPath);
+    path2.setAttribute('stroke', '#ffffff');
+    path2.setAttribute('stroke-width', '3');
+    path2.setAttribute('fill', 'none');
+    path2.setAttribute('stroke-linecap', 'round');
+    path2.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(path2);
+    
+    lightningContainer.innerHTML = '';
+    lightningContainer.appendChild(svg);
+    lightningContainer.style.display = 'block';
+    
+    // 애니메이션 적용
+    lightningContainer.classList.remove('lightning-strike');
+    void lightningContainer.offsetWidth; // 리플로우 강제
+    lightningContainer.classList.add('lightning-strike');
+    
+    // 600ms 후 숨기기
+    setTimeout(() => {
+        lightningContainer.style.display = 'none';
+        lightningContainer.classList.remove('lightning-strike');
+    }, 600);
+}
