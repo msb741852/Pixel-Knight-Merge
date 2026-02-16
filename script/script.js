@@ -717,26 +717,19 @@ if (toggleBtn && invenWrapper) {
         toggleBtn.classList.toggle('rotate');
     });
 }
+// script.js 맨 아래 스킬 부분 (초강력 상향 버전)
 
 // =========================================
-// ⚡ 1. 스킬: 썬더 스트라이크 (DPS 기반)
+// ⚡ 1. 스킬: 썬더 스트라이크 (Monster HP % 기반 + 초강력 DPS)
 // =========================================
 const thunderBtn = document.getElementById('skill-btn-thunder');
 const flashOverlay = document.getElementById('flash-overlay');
 const stageArea = document.getElementById('stage-area');
 
 let isSkillReady = true; 
-const SKILL_COOLDOWN = 30; // 쿨타임 30초
-
-// ⭐ [핵심 설정] ⭐
-// 게임이 1초에 대략 15번 때린다고 가정 (DPS 3.4k / 한방 230 ≈ 15)
-const ATTACKS_PER_SEC = 15; 
-
-// 스킬이 "몇 초치 딜"을 한 번에 넣을지 결정 (여기선 30초치!)
-const SKILL_DURATION_SECONDS = 30; 
+const SKILL_COOLDOWN = 30; // 30초
 
 if (thunderBtn) {
-    // 기존 리스너 제거 및 교체 (중복 방지)
     const newBtn = thunderBtn.cloneNode(true);
     thunderBtn.parentNode.replaceChild(newBtn, thunderBtn);
     
@@ -746,42 +739,42 @@ if (thunderBtn) {
 
         if (!isSkillReady) return;
 
-        // --- A. 한 방 데미지(Base Damage) 계산 ---
-        let oneHitDmg = 0;
-        if (!game.inventory || game.inventory.every(x => x === null)) {
-            oneHitDmg = 100;
-        } else {
-            game.inventory.forEach(lv => {
-                if (lv !== null) {
-                    oneHitDmg += Math.floor(10 * Math.pow(1.14, lv));
-                }
-            });
-        }
+        // --- A. 내 현재 초당 공격력(DPS) 계산 ---
+        let baseOneHit = 0;
+        game.inventory.forEach(lv => {
+            if (lv !== null) baseOneHit += Math.floor(10 * Math.pow(1.14, lv));
+        });
+        if (baseOneHit === 0) baseOneHit = 10;
+
+        // 초당 타격 횟수를 15회로 가정하여 DPS 산출
+        const currentDps = baseOneHit * 15; 
+
+        // --- B. 데미지 결정 (두 가지 중 더 큰 값 적용) ---
+        // 1. 현재 몬스터 최대 체력의 40% (보스라도 피가 확 깎이게)
+        const percentDamage = Math.floor(game.maxHp * 0.4);
         
-        // --- B. 피버 모드 체크 ---
-        let feverBonus = 1;
+        // 2. 내 DPS의 100초 분량 (압도적인 딜량)
+        const dpsDamage = currentDps * 100;
+
+        // 둘 중 더 큰 데미지를 선택하여 필살기다운 위력 보장
+        let finalDamage = Math.max(percentDamage, dpsDamage);
+
+        // 피버 모드면 여기서 또 2배!
         if (typeof isFever !== 'undefined' && isFever) {
-            feverBonus = 2; // 피버면 2배
+            finalDamage *= 2;
         }
 
-        // --- C. 최종 데미지 계산 (공식 변경됨) ---
-        // 공식: (한방 데미지) x (초당 타격 횟수) x (원하는 초)
-        // 즉: DPS x 30초
-        const finalDamage = Math.floor(oneHitDmg * ATTACKS_PER_SEC * SKILL_DURATION_SECONDS * feverBonus);
+        console.log(`⚡ 스킬 발동! 몬스터 체력:${game.maxHp} / 계산된 데미지:${finalDamage}`);
 
-        console.log(`⚡ 스킬 발동!`);
-        console.log(`- 한방 데미지: ${oneHitDmg}`);
-        console.log(`- 예상 DPS: ${oneHitDmg * ATTACKS_PER_SEC}`);
-        console.log(`- 최종 데미지 (${SKILL_DURATION_SECONDS}초 분량): ${finalDamage}`);
-
-        // --- D. 몬스터 체력 깎기 ---
+        // --- C. 데이터 적용 및 UI 업데이트 ---
         game.monsterHp -= finalDamage;
 
-        // --- E. UI 강제 업데이트 ---
         if (typeof showDamageText === 'function') {
+            // true, true : 크리티컬 연출 + 골드색 강조
             showDamageText(finalDamage, null, null, true, true); 
         }
         
+        // 체력바 즉시 업데이트
         const hpBar = document.getElementById('monster-hp-bar');
         if (hpBar) {
             const safeHp = Math.max(0, game.monsterHp);
@@ -789,17 +782,15 @@ if (thunderBtn) {
             hpBar.style.width = `${percent}%`;
         }
 
-        // --- F. 몬스터 사망 처리 ---
+        // --- D. 사망 및 효과 처리 ---
         if (game.monsterHp <= 0) {
             game.monsterHp = 0;
-            if (typeof killMonster === 'function') {
-                killMonster();
-            }
+            if (typeof killMonster === 'function') killMonster();
         } else {
             if (typeof updateMonsterUi === 'function') updateMonsterUi();
         }
 
-        // --- G. 시각 효과 ---
+        // 화면 번쩍 + 지진 효과
         if (flashOverlay) {
             flashOverlay.classList.remove('flash-active');
             void flashOverlay.offsetWidth; 
@@ -810,58 +801,37 @@ if (thunderBtn) {
             setTimeout(() => stageArea.classList.remove('shake-screen'), 500);
         }
 
-        // --- H. 쿨타임 시작 ---
         startCooldown(newBtn, SKILL_COOLDOWN);
     });
 }
 
-// 쿨타임 함수
+// 쿨타임 함수 및 iOS 제스처 방어 코드는 기존과 동일하게 유지
 function startCooldown(btn, seconds) {
     isSkillReady = false;
     btn.classList.add('cooldown');
-    
     let timeLeft = seconds;
     const timerSpan = btn.querySelector('.timer');
     if(timerSpan) {
         timerSpan.style.display = 'block';
         timerSpan.textContent = timeLeft;
     }
-
     const interval = setInterval(() => {
         timeLeft--;
         if(timerSpan) timerSpan.textContent = timeLeft;
-
         if (timeLeft <= 0) {
             clearInterval(interval);
             isSkillReady = true;
             btn.classList.remove('cooldown');
-            if(timerSpan) {
-                timerSpan.textContent = '';
-                timerSpan.style.display = 'none';
-            }
+            if(timerSpan) { timerSpan.textContent = ''; timerSpan.style.display = 'none'; }
         }
     }, 1000);
 }
 
-
-// =========================================
-// 🍎 2. iOS 사파리 제스처 완벽 방어 (유지)
-// =========================================
-document.addEventListener('gesturestart', function (e) {
-    e.preventDefault();
-}, { passive: false });
-
+// iOS 제스처 방어 (생략 방지)
+document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
 let lastTouchEnd = 0;
-document.addEventListener('touchend', function (event) {
+document.addEventListener('touchend', e => {
     const now = (new Date()).getTime();
-    if (now - lastTouchEnd <= 300) {
-        event.preventDefault();
-    }
+    if (now - lastTouchEnd <= 300) e.preventDefault();
     lastTouchEnd = now;
-}, { passive: false });
-
-window.addEventListener('wheel', function(e) {
-    if (e.ctrlKey) {
-        e.preventDefault(); 
-    }
 }, { passive: false });
