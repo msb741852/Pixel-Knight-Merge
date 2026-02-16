@@ -176,7 +176,7 @@ svg { width: 100%; height: 100%; overflow: visible; }
     display: flex; justify-content: center; align-items: center;
 }
 .item.dragging { z-index: 100; pointer-events: none; transform: scale(1.2); opacity: 0.8; }
-.controls { margin-top: auto; padding-top: 10px; text-align: center; flex-shrink: 0; }
+.controls { display: flex; flex-direction: column; align-items: center; margin-top: auto; padding-top: 10px; text-align: center; flex-shrink: 0; }
 
 button {
     background: var(--accent); color: white; border: 4px solid #c0392b; padding: 0;
