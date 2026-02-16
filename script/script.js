@@ -717,3 +717,90 @@ if (toggleBtn && invenWrapper) {
         toggleBtn.classList.toggle('rotate');
     });
 }
+
+// --- [스킬: 썬더 스트라이크] ---
+const thunderBtn = document.getElementById('skill-btn-thunder');
+const flashOverlay = document.getElementById('flash-overlay');
+const stageArea = document.getElementById('stage-area');
+let isSkillReady = true;
+const SKILL_COOLDOWN = 30; // 쿨타임 30초
+
+if (thunderBtn) {
+    thunderBtn.addEventListener('click', (e) => {
+        // 버블링 방지 (터치 시 몬스터 클릭으로 인식되지 않게)
+        e.stopPropagation();
+
+        if (!isSkillReady) return;
+
+        // 1. 스킬 사용 (데미지 계산)
+        // 현재 무기들 중 가장 높은 공격력의 20배 데미지 (없으면 기본 10)
+        // (기존 calculateDamage 함수가 있다면 그걸 써도 되지만, 여기선 간단히 구현)
+        let baseDmg = 1;
+        // 인벤토리에서 무기 찾아서 데미지 계산 (간이 로직)
+        game.inventory.forEach(lv => {
+            if (lv !== null) baseDmg += Math.pow(2, lv);
+        });
+        
+        // 최종 스킬 데미지 (기본 데미지의 20배 + 피버효과 적용됨)
+        // killMonster나 damageMonster를 직접 호출하는 게 아니라 데미지 수치만 크게 줍니다.
+        const skillDamage = Math.floor(baseDmg * 20);
+
+        // 2. 몬스터 타격 처리
+        // 기존 damageMonster 함수가 있다면 그걸 활용 (여기선 직접 체력 깎음)
+        if (typeof damageMonster === 'function') {
+            // damageMonster 함수를 살짝 수정해서 'isSkill' 파라미터를 받으면 좋지만,
+            // 지금은 강제로 체력을 깎고 UI 갱신 함수를 부릅니다.
+            game.monsterHp -= skillDamage;
+            
+            // 데미지 텍스트 표시 (크고 노란색)
+            showDamageText && showDamageText(skillDamage, null, null, true); // true = 크리티컬처럼 크게
+            
+            // 몬스터 사망 체크 (기존 로직 활용)
+            if (game.monsterHp <= 0) {
+                // killMonster 함수가 있다면 호출
+                if (typeof killMonster === 'function') killMonster();
+            } else {
+                // 체력바 갱신
+                if (typeof updateMonsterUi === 'function') updateMonsterUi();
+            }
+        }
+
+        // 3. 시각 효과 (번쩍 + 흔들림)
+        if (flashOverlay) {
+            flashOverlay.classList.remove('flash-active');
+            void flashOverlay.offsetWidth; // 리플로우 강제 (애니메이션 리셋)
+            flashOverlay.classList.add('flash-active');
+        }
+        
+        if (stageArea) {
+            stageArea.classList.add('shake-screen');
+            setTimeout(() => {
+                stageArea.classList.remove('shake-screen');
+            }, 500);
+        }
+
+        // 4. 쿨타임 시작
+        startCooldown(SKILL_COOLDOWN);
+    });
+}
+
+function startCooldown(seconds) {
+    isSkillReady = false;
+    thunderBtn.classList.add('cooldown');
+    
+    let timeLeft = seconds;
+    const timerSpan = thunderBtn.querySelector('.timer');
+    timerSpan.textContent = timeLeft;
+
+    const interval = setInterval(() => {
+        timeLeft--;
+        timerSpan.textContent = timeLeft;
+
+        if (timeLeft <= 0) {
+            clearInterval(interval);
+            isSkillReady = true;
+            thunderBtn.classList.remove('cooldown');
+            timerSpan.textContent = '';
+        }
+    }, 1000);
+}
