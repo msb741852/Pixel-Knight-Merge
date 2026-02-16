@@ -9,6 +9,18 @@
 </head>
 <body>
 
+    <div id="ability-modal" class="modal-overlay" style="background: rgba(0,0,0,0.9);">
+        <div class="modal-box">
+            <h3 style="color: #9b59b6; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #555; padding-bottom: 10px;">✨ SPECIAL ABILITIES</h3>
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;">
+                <button id="crit-btn" style="height: 100px; font-size: 0.6rem; background: #e74c3c; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 10px;"><span class="ability-icon" style="font-size: 2rem;">💥</span>CRIT<span class="ability-lv">Lv.0</span></button>
+                <button id="speed-btn" style="height: 100px; font-size: 0.6rem; background: #f39c12; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 10px;"><span class="ability-icon" style="font-size: 2rem;">⚡</span>SPEED<span class="ability-lv">Lv.0</span></button>
+                <button id="damage-btn" style="height: 100px; font-size: 0.6rem; background: #27ae60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 10px;"><span class="ability-icon" style="font-size: 2rem;">🔥</span>DAMAGE<span class="ability-lv">Lv.0</span></button>
+            </div>
+            <button style="margin: 0 auto" class="modal-btn" onclick="document.getElementById('ability-modal').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
     <div id="login-modal" class="modal-overlay">
         <h1 style="color:white; text-shadow: 4px 4px 0 #000; margin-bottom: 30px; text-align: center; line-height: 1.5;">PIXEL<br>KNIGHT</h1>
         <input type="text" id="nickname-input" placeholder="NICKNAME" maxlength="8">
@@ -184,6 +196,9 @@
             <div id="grid"></div>
         </div>
         <div class="controls">
+            <button id="toggle-ability-btn" style="margin-bottom:8px; background:#9b59b6; border-color:#8e44ad; box-shadow: 0 4px 0 #71368a;">
+                ✨ ABILITIES
+            </button>
             <button id="upgrade-btn" style="margin-bottom:8px; background:#9b59b6; border-color:#8e44ad; box-shadow: 0 4px 0 #71368a;">
                 UPGRADE Lv.+<br/>(1,000 G)
             </button>

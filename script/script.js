@@ -30,7 +30,13 @@ let game = {
     maxHp: 20, 
     bestStage: 1,
     hasReceivedReward: false,
-    minWeaponLevel: 0
+    minWeaponLevel: 0,
+    // 특수 능력 데이터
+    abilities: {
+        crit: { level: 0, cost: 500, maxLevel: 20 },      // 크리티컬 확률: 레벨당 2% 증가 (최대 Lv.20)
+        speed: { level: 0, cost: 500, maxLevel: 20 },     // 공격 속도: 레벨당 15% 증가 (최대 Lv.20)
+        damage: { level: 0, cost: 500, maxLevel: 20 }     // 데미지 보너스: 레벨당 10% 증가 (최대 Lv.20)
+    }
 };
 
 let audioCtx = null;
@@ -90,6 +96,19 @@ async function loadDataFromCloud(nickname, password) {
             console.log("☁️ 로그인 성공!");
             game = { ...game, ...data.gameData }; 
             if (typeof game.minWeaponLevel === 'undefined') game.minWeaponLevel = 0;
+            // 능력 데이터 초기화 (기존 유저 호환성)
+            if (typeof game.abilities === 'undefined') {
+                game.abilities = {
+                    crit: { level: 0, cost: 500, maxLevel: 20 },
+                    speed: { level: 0, cost: 500, maxLevel: 20 },
+                    damage: { level: 0, cost: 500, maxLevel: 20 }
+                };
+            } else {
+                // 기존 데이터에 maxLevel 추가
+                if (!game.abilities.crit.maxLevel) game.abilities.crit.maxLevel = 20;
+                if (!game.abilities.speed.maxLevel) game.abilities.speed.maxLevel = 20;
+                if (!game.abilities.damage.maxLevel) game.abilities.damage.maxLevel = 20;
+            }
             return "EXISTING_USER"; 
         } else {
             console.log("✨ 신규 유저 생성");
@@ -252,7 +271,12 @@ window.resetData = function() {
             gold: 0, inventory: Array(16).fill(null), buyCount: 0, 
             stage: 1, monsterHp: 20, maxHp: 20, bestStage: 1,
             hasReceivedReward: false,
-            minWeaponLevel: 0
+            minWeaponLevel: 0,
+            abilities: {
+                crit: { level: 0, cost: 500, maxLevel: 20 },
+                speed: { level: 0, cost: 500, maxLevel: 20 },
+                damage: { level: 0, cost: 500, maxLevel: 20 }
+            }
         };
         saveToCloud().then(() => { location.reload(); });
     } 
@@ -375,7 +399,11 @@ function combatLoop(timestamp) {
     }
 
     if (delta >= 1000) { 
-        const dps = getTotalDPS();
+        let dps = getTotalDPS();
+        // 능력 배수 적용
+        const abilityBonus = getAbilityBonuses();
+        dps *= abilityBonus.damageMultiplier;
+        
         // 피버 시 DPS 2배
         const actualDps = isFeverMode ? dps * 2 : dps;
         if (actualDps > 0) attackMonster(actualDps, null, null, false);
@@ -405,7 +433,8 @@ stageZone.addEventListener('pointerdown', (e) => {
     if (!isGameStarted || game.monsterHp <= 0) return;
     initAudio(); 
     const dps = getTotalDPS();
-    const baseDmg = Math.max(1, dps); 
+    const abilityBonus = getAbilityBonuses();
+    const baseDmg = Math.max(1, dps * abilityBonus.damageMultiplier);
     attackMonster(baseDmg, e.clientX, e.clientY, true);
 });
 
@@ -422,7 +451,10 @@ function attackMonster(damage, x, y, isClick) {
     let finalDmg = damage;
     if (isFeverMode) finalDmg *= 2; // 피버 데미지 2배
 
-    const isCrit = Math.random() < 0.1;
+    // 능력 크리티컬 확률 적용
+    const abilityBonus = getAbilityBonuses();
+    const critChance = (0.1 + (abilityBonus.critChance / 100)); // 기본 10% + 능력 크리티컬
+    const isCrit = Math.random() < critChance;
     if (isCrit) finalDmg *= 2; 
 
     const hero = document.getElementById('hero-wrapper');
@@ -597,6 +629,9 @@ function render() {
     const upCost = getUpgradeCost();
     upBtn.innerText = `START Lv.${game.minWeaponLevel} ➡ ${game.minWeaponLevel+1}\n(${formatNum(upCost)} G)`;
     upBtn.disabled = game.gold < upCost;
+    
+    // 능력 UI 업데이트
+    updateAbilityUI();
 
     const slots = document.querySelectorAll('.slot');
     slots.forEach((slot, idx) => {
@@ -927,3 +962,176 @@ function triggerLightningStrike() {
         lightningContainer.classList.remove('lightning-strike');
     }, 600);
 }
+
+// =========================================
+// ✨ 특수 능력 업그레이드 시스템
+// =========================================
+
+// 능력 업그레이드 함수
+function upgradeAbility(abilityName) {
+    if (!game.abilities || !game.abilities[abilityName]) return;
+    
+    const ability = game.abilities[abilityName];
+    
+    // 최대치 확인
+    if (ability.level >= ability.maxLevel) {
+        alert(`😇 ${abilityName.toUpperCase()} 능력이 최대치(Lv.${ability.maxLevel})에 도달했습니다!`);
+        return;
+    }
+    
+    const cost = ability.cost;
+    
+    if (game.gold < cost) {
+        alert(`골드가 부족합니다! (필요: ${formatNum(cost)}G, 보유: ${formatNum(game.gold)}G)`);
+        return;
+    }
+    
+    // 골드 차감
+    game.gold -= cost;
+    ability.level++;
+    
+    // 비용 증가 (레벨당 1.5배)
+    ability.cost = Math.floor(500 * Math.pow(1.5, ability.level));
+    
+    // 효과 표시
+    const abilityNames = {
+        crit: '크리티컬',
+        speed: '공격속도',
+        damage: '데미지'
+    };
+    showDamageText(`${abilityNames[abilityName]} Lv.${ability.level}!`, null, null, true, true);
+    
+    // UI 업데이트
+    updateAbilityUI();
+    saveToCloud();
+}
+
+// 능력 UI 업데이트
+function updateAbilityUI() {
+    if (!game.abilities) return;
+    
+    // 크리티컬 버튼
+    const critBtn = document.getElementById('crit-btn');
+    if (critBtn) {
+        const critLv = game.abilities.crit.level;
+        const maxLv = game.abilities.crit.maxLevel;
+        const critCost = game.abilities.crit.cost;
+        const isMaxcrit = critLv >= maxLv;
+        
+        if (isMaxcrit) {
+            critBtn.innerHTML = `<span class="ability-icon">💥</span><br>CRIT<br><span class="ability-lv">Lv.${critLv}/${maxLv}</span><br><span style="font-size: 0.5rem; color: #ffaa00;">MAX!</span>`;
+            critBtn.disabled = true;
+        } else {
+            critBtn.innerHTML = `<span class="ability-icon">💥</span><br>CRIT<br><span class="ability-lv">Lv.${critLv}</span><br><span style="font-size: 0.5rem; color: #f1c40f;">${formatNum(critCost)}</span>`;
+            critBtn.disabled = false;
+        }
+    }
+    
+    // 속도 버튼
+    const speedBtn = document.getElementById('speed-btn');
+    if (speedBtn) {
+        const speedLv = game.abilities.speed.level;
+        const maxLv = game.abilities.speed.maxLevel;
+        const speedCost = game.abilities.speed.cost;
+        const isMaxSpeed = speedLv >= maxLv;
+        
+        if (isMaxSpeed) {
+            speedBtn.innerHTML = `<span class="ability-icon">⚡</span><br>SPEED<br><span class="ability-lv">Lv.${speedLv}/${maxLv}</span><br><span style="font-size: 0.5rem; color: #ffaa00;">MAX!</span>`;
+            speedBtn.disabled = true;
+        } else {
+            speedBtn.innerHTML = `<span class="ability-icon">⚡</span><br>SPEED<br><span class="ability-lv">Lv.${speedLv}</span><br><span style="font-size: 0.5rem; color: #f1c40f;">${formatNum(speedCost)}</span>`;
+            speedBtn.disabled = false;
+        }
+    }
+    
+    // 데미지 버튼
+    const damageBtn = document.getElementById('damage-btn');
+    if (damageBtn) {
+        const damageLv = game.abilities.damage.level;
+        const maxLv = game.abilities.damage.maxLevel;
+        const damageCost = game.abilities.damage.cost;
+        const isMaxDamage = damageLv >= maxLv;
+        
+        if (isMaxDamage) {
+            damageBtn.innerHTML = `<span class="ability-icon">🔥</span><br>DAMAGE<br><span class="ability-lv">Lv.${damageLv}/${maxLv}</span><br><span style="font-size: 0.5rem; color: #ffaa00;">MAX!</span>`;
+            damageBtn.disabled = true;
+        } else {
+            damageBtn.innerHTML = `<span class="ability-icon">🔥</span><br>DAMAGE<br><span class="ability-lv">Lv.${damageLv}</span><br><span style="font-size: 0.5rem; color: #f1c40f;">${formatNum(damageCost)}</span>`;
+            damageBtn.disabled = false;
+        }
+    }
+}
+
+// 능력 효과 적용 함수
+function getAbilityBonuses() {
+    if (!game.abilities) return { critChance: 0, speedMultiplier: 1, damageMultiplier: 1 };
+    
+    const critLevel = game.abilities.crit.level;
+    const speedLevel = game.abilities.speed.level;
+    const damageLevel = game.abilities.damage.level;
+    
+    return {
+        critChance: critLevel * 2,           // 레벨당 2% 크리티컬 확률
+        speedMultiplier: 1 + (speedLevel * 0.15),  // 레벨당 15% 공격속도 증가
+        damageMultiplier: 1 + (damageLevel * 0.10) // 레벨당 10% 데미지 증가
+    };
+}
+
+// UI 초기화 및 이벤트 바인딩
+setTimeout(() => {
+    // 능력 토글 버튼
+    const toggleAbilityBtn = document.getElementById('toggle-ability-btn');
+    const abilityModal = document.getElementById('ability-modal');
+    
+    if (toggleAbilityBtn && abilityModal) {
+        toggleAbilityBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            abilityModal.style.display = 'flex';
+        });
+        
+        // 모달 바깥쪽 클릭 시 닫기
+        abilityModal.addEventListener('click', (e) => {
+            if (e.target === abilityModal) {
+                abilityModal.style.display = 'none';
+            }
+        });
+    }
+    
+    // 능력 업그레이드 버튼들
+    const critBtn = document.getElementById('crit-btn');
+    const speedBtn = document.getElementById('speed-btn');
+    const damageBtn = document.getElementById('damage-btn');
+    
+    if (critBtn) {
+        const newCritBtn = critBtn.cloneNode(true);
+        critBtn.parentNode.replaceChild(newCritBtn, critBtn);
+        newCritBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            upgradeAbility('crit');
+        });
+    }
+    
+    if (speedBtn) {
+        const newSpeedBtn = speedBtn.cloneNode(true);
+        speedBtn.parentNode.replaceChild(newSpeedBtn, speedBtn);
+        newSpeedBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            upgradeAbility('speed');
+        });
+    }
+    
+    if (damageBtn) {
+        const newDamageBtn = damageBtn.cloneNode(true);
+        damageBtn.parentNode.replaceChild(newDamageBtn, damageBtn);
+        newDamageBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            upgradeAbility('damage');
+        });
+    }
+    
+    updateAbilityUI();
+}, 100);
