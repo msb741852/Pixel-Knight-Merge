@@ -58,22 +58,100 @@
                 <div id="monster-hp-bar" class="hp-fill"></div>
                 <div id="hp-text"></div>
             </div>
+            <!-- 스테이지별 몬스터 형태 -->
             <svg id="monster-svg" viewBox="0 0 12 12" shape-rendering="crispEdges">
-                <rect x="2" y="4" width="8" height="7" fill="currentColor" /><rect x="3" y="3" width="6" height="1" fill="currentColor" />
-                
-                <g id="eyes-normal">
-                    <rect x="3" y="5" width="2" height="2" fill="#fff" /><rect x="7" y="5" width="2" height="2" fill="#fff" />
-                    <rect x="4" y="6" width="1" height="1" fill="#000" /><rect x="8" y="6" width="1" height="1" fill="#000" />
-                </g>
-                
-                <g id="eyes-hit" style="display:none">
-                    <path d="M3 5 h1 v1 h1 v1 h-1 v-1 h-1 v-1" fill="#fff" />
-                    <path d="M3 7 h1 v1 h-1 v-1" fill="#fff" />
-                    <path d="M9 5 h-1 v1 h-1 v1 h1 v-1 h1 v-1" fill="#fff" />
-                    <path d="M9 7 h-1 v1 h1 v-1" fill="#fff" />
+                <!-- Form 0: 기본 몬스터 (Stage 1-99) -->
+                <g id="monster-form-0">
+                    <rect x="2" y="4" width="8" height="7" fill="currentColor" /><rect x="3" y="3" width="6" height="1" fill="currentColor" />
+                    <!-- 작은 뿔 -->
+                    <rect x="3" y="2" width="1" height="1" fill="currentColor" /><rect x="8" y="2" width="1" height="1" fill="currentColor" />
+                    <!-- 눈 -->
+                    <g class="eyes-normal">
+                        <rect x="3" y="5" width="2" height="2" fill="#ffaa00" /><rect x="7" y="5" width="2" height="2" fill="#ffaa00" />
+                        <rect x="4" y="6" width="1" height="1" fill="#000" /><rect x="8" y="6" width="1" height="1" fill="#000" />
+                    </g>
+                    <g class="eyes-hit" style="display:none">
+                        <line x1="3" y1="6" x2="5" y2="6" stroke="#ffff00" stroke-width="1" />
+                        <line x1="7" y1="6" x2="9" y2="6" stroke="#ffff00" stroke-width="1" />
+                    </g>
+                    <!-- 입 -->
+                    <rect x="5" y="8" width="2" height="1" fill="#000" />
                 </g>
 
-                <rect x="5" y="9" width="2" height="1" fill="#330000" opacity="0.5" />
+                <!-- Form 1: 뿔 몬스터 (Stage 100-199) -->
+                <g id="monster-form-1" style="display:none">
+                    <rect x="1" y="5" width="10" height="6" fill="currentColor" /><rect x="2" y="4" width="8" height="1" fill="currentColor" />
+                    <!-- 뿔 -->
+                    <rect x="2" y="2" width="2" height="2" fill="currentColor" /><rect x="8" y="2" width="2" height="2" fill="currentColor" />
+                    <!-- 눈 -->
+                    <g class="eyes-normal">
+                        <rect x="3" y="5" width="2" height="2" fill="#ffaa00" /><rect x="7" y="5" width="2" height="2" fill="#ffaa00" />
+                        <rect x="3" y="5" width="2" height="1" fill="#000" /><rect x="7" y="5" width="2" height="1" fill="#000" />
+                    </g>
+                    <g class="eyes-hit" style="display:none">
+                        <line x1="3" y1="6" x2="5" y2="6" stroke="#ffff00" stroke-width="1" />
+                        <line x1="7" y1="6" x2="9" y2="6" stroke="#ffff00" stroke-width="1" />
+                    </g>
+                    <!-- 입과 이빨 -->
+                    <rect x="4" y="8" width="4" height="1" fill="#000" />
+                    <rect x="4" y="8" width="1" height="1" fill="#ffff00" /><rect x="7" y="8" width="1" height="1" fill="#ffff00" />
+                </g>
+
+                <!-- Form 2: 큰 몬스터 (Stage 200-299) -->
+                <g id="monster-form-2" style="display:none">
+                    <rect x="0" y="3" width="12" height="8" fill="currentColor" /><rect x="1" y="2" width="10" height="1" fill="currentColor" />
+                    <!-- 뿔 -->
+                    <rect x="1" y="1" width="2" height="1" fill="currentColor" /><rect x="9" y="1" width="2" height="1" fill="currentColor" />
+                    <!-- 눈 -->
+                    <g class="eyes-normal">
+                        <rect x="2" y="4" width="2" height="2" fill="#ffaa00" /><rect x="8" y="4" width="2" height="2" fill="#ffaa00" />
+                        <rect x="2" y="4" width="2" height="1" fill="#000" /><rect x="8" y="4" width="2" height="1" fill="#000" />
+                    </g>
+                    <g class="eyes-hit" style="display:none">
+                        <line x1="2" y1="5" x2="4" y2="5" stroke="#ffff00" stroke-width="1" />
+                        <line x1="8" y1="5" x2="10" y2="5" stroke="#ffff00" stroke-width="1" />
+                    </g>
+                    <!-- 입 -->
+                    <rect x="4" y="9" width="4" height="1" fill="#000" />
+                </g>
+
+                <!-- Form 3: 큼 (Stage 300-399) -->
+                <g id="monster-form-3" style="display:none">
+                    <rect x="0" y="4" width="12" height="7" fill="currentColor" /><rect x="1" y="3" width="10" height="1" fill="currentColor" />
+                    <!-- 뿔 -->
+                    <rect x="1" y="1" width="2" height="2" fill="currentColor" /><rect x="9" y="1" width="2" height="2" fill="currentColor" />
+                    <!-- 눈 -->
+                    <g class="eyes-normal">
+                        <rect x="2" y="5" width="2" height="2" fill="#ffaa00" /><rect x="8" y="5" width="2" height="2" fill="#ffaa00" />
+                        <rect x="2" y="5" width="2" height="1" fill="#000" /><rect x="8" y="5" width="2" height="1" fill="#000" />
+                    </g>
+                    <g class="eyes-hit" style="display:none">
+                        <line x1="2" y1="6" x2="4" y2="6" stroke="#ffff00" stroke-width="1" />
+                        <line x1="8" y1="6" x2="10" y2="6" stroke="#ffff00" stroke-width="1" />
+                    </g>
+                    <!-- 입 -->
+                    <rect x="3" y="8" width="6" height="1" fill="#000" />
+                    <rect x="4" y="8" width="1" height="1" fill="#ffff00" /><rect x="7" y="8" width="1" height="1" fill="#ffff00" />
+                </g>
+
+                <!-- Form 4: 보스 (Stage 400+) -->
+                <g id="monster-form-4" style="display:none">
+                    <rect x="0" y="2" width="12" height="9" fill="currentColor" /><rect x="0" y="2" width="12" height="1" fill="currentColor" />
+                    <!-- 뿔 -->
+                    <rect x="0" y="0" width="2" height="2" fill="currentColor" /><rect x="10" y="0" width="2" height="2" fill="currentColor" />
+                    <!-- 눈 -->
+                    <g class="eyes-normal">
+                        <rect x="1" y="4" width="3" height="3" fill="#ffaa00" /><rect x="8" y="4" width="3" height="3" fill="#ffaa00" />
+                        <rect x="1" y="4" width="3" height="1" fill="#000" /><rect x="8" y="4" width="3" height="1" fill="#000" />
+                    </g>
+                    <g class="eyes-hit" style="display:none">
+                        <line x1="1" y1="6" x2="4" y2="6" stroke="#ffff00" stroke-width="1" />
+                        <line x1="8" y1="6" x2="11" y2="6" stroke="#ffff00" stroke-width="1" />
+                    </g>
+                    <!-- 입 -->
+                    <rect x="3" y="8" width="6" height="2" fill="#000" />
+                    <rect x="4" y="8" width="1" height="1" fill="#ffff00" /><rect x="6" y="8" width="1" height="1" fill="#ffff00" /><rect x="8" y="8" width="1" height="1" fill="#ffff00" />
+                </g>
             </svg>
         </div>
         

@@ -495,8 +495,33 @@ function updateMonsterAppearance() {
     const hue = (game.stage * 35) % 360; 
     const monster = document.getElementById('monster-wrapper');
     const svg = document.getElementById('monster-svg');
+    
     if(monster) monster.style.color = `hsl(${hue}, 70%, 60%)`;
     if(svg) svg.style.fill = `hsl(${hue}, 70%, 60%)`;
+    
+    // ★ 스테이지 100단위별 몬스터 형태 변경
+    let formIndex = 0;
+    if (game.stage >= 400) {
+        formIndex = 4; // 최종 보스
+    } else if (game.stage >= 300) {
+        formIndex = 3; // 뿔 2개 + 큼
+    } else if (game.stage >= 200) {
+        formIndex = 2; // 큰 몬스터
+    } else if (game.stage >= 100) {
+        formIndex = 1; // 뿔 몬스터
+    } else {
+        formIndex = 0; // 기본
+    }
+    
+    // 모든 form 숨기기
+    for (let i = 0; i <= 4; i++) {
+        const form = document.getElementById(`monster-form-${i}`);
+        if (form) form.style.display = 'none';
+    }
+    
+    // 현재 스테이지에 맞는 form만 표시
+    const currentForm = document.getElementById(`monster-form-${formIndex}`);
+    if (currentForm) currentForm.style.display = 'block';
 }
 
 // ★ 피버 발동 함수 (수정됨: 스테이지 영역만 화려하게)
