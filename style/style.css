@@ -208,3 +208,33 @@ button:disabled { background: #7f8c8d; border-color: #555; box-shadow: none; col
     /* 부드러운 전환 효과 */
     transition: all 0.2s ease-in-out;
 }
+
+/* style.css 맨 아래에 추가 */
+
+/* 유령 스타일 */
+.ghost-effect {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* 정중앙 배치 */
+    font-size: 2rem; /* 유령 크기 */
+    z-index: 100; /* 몬스터보다 위에 뜨게 */
+    pointer-events: none; /* 마우스 클릭 방해 안 하게 설정 */
+    animation: ghostFloat 1.2s ease-out forwards; /* 1.2초 동안 둥둥 떠오름 */
+}
+
+/* 둥둥 떠오르며 사라지는 애니메이션 */
+@keyframes ghostFloat {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -20%) scale(0.5); /* 작고 투명하게 시작 */
+    }
+    20% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2); /* 커지면서 등장 */
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -150%) scale(1); /* 위로 올라가면서 사라짐 */
+    }
+}

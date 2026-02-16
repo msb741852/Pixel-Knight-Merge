@@ -442,6 +442,7 @@ function attackMonster(damage, x, y, isClick) {
 }
 
 function killMonster() {
+    showGhostEffect();
     let gainGold = Math.floor(game.maxHp * 1.0);
     if (isFeverMode) gainGold *= 2; // 피버 골드 2배
 
@@ -681,3 +682,21 @@ document.addEventListener('touchstart', (e) => {
 document.addEventListener('gesturestart', (e) => {
     e.preventDefault(); // 핀치 줌 차단
 });
+
+// 유령 이펙트 생성 함수
+function showGhostEffect() {
+    const wrapper = document.getElementById('monster-wrapper');
+    
+    // 유령 요소(div) 생성
+    const ghost = document.createElement('div');
+    ghost.textContent = '👻'; // 유령 이모지 (이미지로 바꾸고 싶으면 img 태그 사용)
+    ghost.classList.add('ghost-effect'); // CSS 클래스 적용
+
+    // 몬스터 위치에 추가
+    wrapper.appendChild(ghost);
+
+    // 1.2초 뒤에(애니메이션 끝나면) 태그 삭제 (메모리 관리)
+    setTimeout(() => {
+        ghost.remove();
+    }, 1200);
+}
