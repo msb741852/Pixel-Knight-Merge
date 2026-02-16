@@ -210,8 +210,6 @@ button:disabled { background: #7f8c8d; border-color: #555; box-shadow: none; col
     transition: all 0.2s ease-in-out;
 }
 
-/* style.css 맨 아래에 추가 */
-
 /* 유령 스타일 */
 .ghost-effect {
     position: absolute;
@@ -239,9 +237,8 @@ button:disabled { background: #7f8c8d; border-color: #555; box-shadow: none; col
         transform: translate(-50%, -150%) scale(1); /* 위로 올라가면서 사라짐 */
     }
 }
-/* style.css 맨 아래 (기존 것 지우고 붙여넣기 - 최종_수정_완료.ver) */
 
-/* 1. 레이아웃 자동 조정 (탄성 효과) */
+/* 1. 레이아웃 자동 조정 */
 #stage-area {
     flex: 1 !important;
     transition: flex 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -252,56 +249,57 @@ button:disabled { background: #7f8c8d; border-color: #555; box-shadow: none; col
     height: auto !important;
 }
 
-/* 2. 인벤토리 포장지 (높이 조절) */
+/* 2. 인벤토리 포장지 */
 #inven-wrapper {
     display: grid;
-    grid-template-rows: 1fr; /* 100% */
-    /* overflow: hidden이 있어야 내용물이 바깥으로 삐져나오지 않음 */
-    overflow: hidden; 
+    grid-template-rows: 1fr;
+    overflow: hidden;
     transition: grid-template-rows 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 #inven-wrapper.collapsed {
-    grid-template-rows: 0fr; /* 0% */
+    grid-template-rows: 0fr;
 }
 
-/* 3. 인벤토리 내용물 (애니메이션 핵심!) */
+/* 3. 인벤토리 내용물 (좌표 오류 수정됨!) */
 #grid {
     min-height: 0;
     
-    /* 기본 상태 (펼쳐짐) */
+    /* [수정 포인트 1] transform 제거 -> margin 사용 */
     opacity: 1;
-    transform: translateY(0); /* 제자리 */
+    margin-top: 0; /* 기본 위치 */
     
-    /* 나타날 때는 천천히 우아하게 */
-    transition: opacity 0.4s ease, transform 0.4s ease;
+    /* transform 대신 margin-top을 애니메이션 시킴 */
+    transition: opacity 0.4s ease, margin-top 0.4s ease;
     
-    /* 기존 그리드 속성 유지 */
+    /* 기존 그리드 속성 */
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 6px;
     width: 100%;
     max-width: 400px;
     aspect-ratio: 1;
-    margin: 0 auto;
+    margin-left: auto;  /* margin: 0 auto 에서 분리 */
+    margin-right: auto;
+    margin-bottom: 0;
 }
 
-/* 4. 접혔을 때의 동작 (수정됨) */
+/* 4. 접혔을 때의 동작 */
 #inven-wrapper.collapsed #grid {
     opacity: 0;
-    /* ⭐ 핵심: 아래로 내려가는 게 아니라, 위(버튼 쪽)로 빨려 들어감 ⭐ */
-    transform: translateY(-30px); 
     
-    /* ⭐ 핵심: 창이 닫히는 시간(0.4s)보다 훨씬 빨리 투명해짐(0.15s) ⭐ */
-    /* 이렇게 해야 버튼과 겹쳐 보이는 잔상이 사라짐 */
-    transition: opacity 0.15s ease, transform 0.4s ease;
+    /* [수정 포인트 2] 위로 딸려 올라가는 효과를 마진으로 구현 */
+    margin-top: -30px; 
+    
+    /* 사라질 때는 빠르게 */
+    transition: opacity 0.15s ease, margin-top 0.4s ease;
 }
 
 /* 5. 토글 버튼 회전 */
 #toggle-inven-btn {
-    transition: transform 0.3s ease;
     position: absolute;
-    left: calc(50% - 18px); /* 버튼 너비의 절반만큼 왼쪽으로 이동 */;
+    left: calc(50% - 18px); /* 버튼 너비의 절반만큼 왼쪽으로 이동 */
+    transition: transform 0.3s ease;
 }
 #toggle-inven-btn.rotate {
     transform: rotate(180deg);
