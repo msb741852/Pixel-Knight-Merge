@@ -718,61 +718,88 @@ if (toggleBtn && invenWrapper) {
     });
 }
 
-// --- [스킬: 썬더 스트라이크] ---
+// =========================================
+// ⚡ 1. 스킬: 썬더 스트라이크 (DPS 기반)
+// =========================================
 const thunderBtn = document.getElementById('skill-btn-thunder');
 const flashOverlay = document.getElementById('flash-overlay');
 const stageArea = document.getElementById('stage-area');
 
 let isSkillReady = true; 
 const SKILL_COOLDOWN = 30; // 쿨타임 30초
-const SKILL_MULTIPLIER = 100; // ⭐ 배율 수정: 한 방 데미지의 100배! (이제 진짜 셀 겁니다)
+
+// ⭐ [핵심 설정] ⭐
+// 게임이 1초에 대략 15번 때린다고 가정 (DPS 3.4k / 한방 230 ≈ 15)
+const ATTACKS_PER_SEC = 15; 
+
+// 스킬이 "몇 초치 딜"을 한 번에 넣을지 결정 (여기선 30초치!)
+const SKILL_DURATION_SECONDS = 30; 
 
 if (thunderBtn) {
-    thunderBtn.addEventListener('click', (e) => {
+    // 기존 리스너 제거 및 교체 (중복 방지)
+    const newBtn = thunderBtn.cloneNode(true);
+    thunderBtn.parentNode.replaceChild(newBtn, thunderBtn);
+    
+    newBtn.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation(); 
 
         if (!isSkillReady) return;
 
-        // 1. 기본 데미지 계산
-        let totalDmg = 0;
-        game.inventory.forEach(lv => {
-            if (lv !== null) {
-                // 기본 데미지 공식
-                totalDmg += Math.floor(10 * Math.pow(1.14, lv));
-            }
-        });
-        if (totalDmg === 0) totalDmg = 100;
-
-        // 2. ⭐ 피버 모드 체크 ⭐ (피버 중이면 데미지 2배 더!)
-        // (script.js 상단에 isFever 변수가 있다고 가정, 없으면 1배)
+        // --- A. 한 방 데미지(Base Damage) 계산 ---
+        let oneHitDmg = 0;
+        if (!game.inventory || game.inventory.every(x => x === null)) {
+            oneHitDmg = 100;
+        } else {
+            game.inventory.forEach(lv => {
+                if (lv !== null) {
+                    oneHitDmg += Math.floor(10 * Math.pow(1.14, lv));
+                }
+            });
+        }
+        
+        // --- B. 피버 모드 체크 ---
         let feverBonus = 1;
         if (typeof isFever !== 'undefined' && isFever) {
-            feverBonus = 2; 
+            feverBonus = 2; // 피버면 2배
         }
 
-        // 3. 최종 데미지 = (기본공격력) * (스킬배율 100배) * (피버보너스)
-        const finalDamage = totalDmg * SKILL_MULTIPLIER * feverBonus;
+        // --- C. 최종 데미지 계산 (공식 변경됨) ---
+        // 공식: (한방 데미지) x (초당 타격 횟수) x (원하는 초)
+        // 즉: DPS x 30초
+        const finalDamage = Math.floor(oneHitDmg * ATTACKS_PER_SEC * SKILL_DURATION_SECONDS * feverBonus);
 
-        // 4. 데이터 적용
+        console.log(`⚡ 스킬 발동!`);
+        console.log(`- 한방 데미지: ${oneHitDmg}`);
+        console.log(`- 예상 DPS: ${oneHitDmg * ATTACKS_PER_SEC}`);
+        console.log(`- 최종 데미지 (${SKILL_DURATION_SECONDS}초 분량): ${finalDamage}`);
+
+        // --- D. 몬스터 체력 깎기 ---
         game.monsterHp -= finalDamage;
 
-        // 5. UI 및 이펙트 처리
+        // --- E. UI 강제 업데이트 ---
         if (typeof showDamageText === 'function') {
-            // true, true : 크리티컬(큰 글씨) + 골드색(강조)
             showDamageText(finalDamage, null, null, true, true); 
         }
-
-        if (typeof updateMonsterUi === 'function') {
-            updateMonsterUi();
-        } else {
-            const hpBar = document.getElementById('monster-hp-bar');
-            if (hpBar) {
-                const percent = Math.max(0, (game.monsterHp / game.maxHp) * 100);
-                hpBar.style.width = `${percent}%`;
-            }
+        
+        const hpBar = document.getElementById('monster-hp-bar');
+        if (hpBar) {
+            const safeHp = Math.max(0, game.monsterHp);
+            const percent = (safeHp / game.maxHp) * 100;
+            hpBar.style.width = `${percent}%`;
         }
 
-        // 화면 효과
+        // --- F. 몬스터 사망 처리 ---
+        if (game.monsterHp <= 0) {
+            game.monsterHp = 0;
+            if (typeof killMonster === 'function') {
+                killMonster();
+            }
+        } else {
+            if (typeof updateMonsterUi === 'function') updateMonsterUi();
+        }
+
+        // --- G. 시각 효과 ---
         if (flashOverlay) {
             flashOverlay.classList.remove('flash-active');
             void flashOverlay.offsetWidth; 
@@ -783,24 +810,22 @@ if (thunderBtn) {
             setTimeout(() => stageArea.classList.remove('shake-screen'), 500);
         }
 
-        // 6. 사망 처리
-        if (game.monsterHp <= 0) {
-            game.monsterHp = 0;
-            if (typeof killMonster === 'function') killMonster();
-        }
-
-        // 7. 쿨타임 시작
-        startCooldown(SKILL_COOLDOWN);
+        // --- H. 쿨타임 시작 ---
+        startCooldown(newBtn, SKILL_COOLDOWN);
     });
 }
 
-function startCooldown(seconds) {
+// 쿨타임 함수
+function startCooldown(btn, seconds) {
     isSkillReady = false;
-    thunderBtn.classList.add('cooldown');
+    btn.classList.add('cooldown');
     
     let timeLeft = seconds;
-    const timerSpan = thunderBtn.querySelector('.timer');
-    if(timerSpan) timerSpan.textContent = timeLeft;
+    const timerSpan = btn.querySelector('.timer');
+    if(timerSpan) {
+        timerSpan.style.display = 'block';
+        timerSpan.textContent = timeLeft;
+    }
 
     const interval = setInterval(() => {
         timeLeft--;
@@ -809,8 +834,34 @@ function startCooldown(seconds) {
         if (timeLeft <= 0) {
             clearInterval(interval);
             isSkillReady = true;
-            thunderBtn.classList.remove('cooldown');
-            if(timerSpan) timerSpan.textContent = '';
+            btn.classList.remove('cooldown');
+            if(timerSpan) {
+                timerSpan.textContent = '';
+                timerSpan.style.display = 'none';
+            }
         }
     }, 1000);
 }
+
+
+// =========================================
+// 🍎 2. iOS 사파리 제스처 완벽 방어 (유지)
+// =========================================
+document.addEventListener('gesturestart', function (e) {
+    e.preventDefault();
+}, { passive: false });
+
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function (event) {
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+    }
+    lastTouchEnd = now;
+}, { passive: false });
+
+window.addEventListener('wheel', function(e) {
+    if (e.ctrlKey) {
+        e.preventDefault(); 
+    }
+}, { passive: false });
